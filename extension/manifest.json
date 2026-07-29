@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Echo-Breaker: Real-Time News Blind Spot Analyzer",
+  "version": "1.0.0",
+  "description": "Break out of filter bubbles. AI Chatbot for omitted facts, truth veracity, and opposing perspectives.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Echo-Breaker AI Pop-Out Window"
+  },
+  "commands": {
+    "toggle-echo-breaker": {
+      "suggested_key": {
+        "default": "Alt+E",
+        "mac": "Alt+E",
+        "chromeos": "Alt+E",
+        "linux": "Alt+E"
+      },
+      "description": "Open Echo-Breaker AI Pop-Out Window"
+    }
+  }
+}

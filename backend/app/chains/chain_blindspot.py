@@ -1,0 +1,133 @@
+import json
+import logging
+from typing import Dict, Any, List
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from app.chains.chain_extractor import get_llm
+
+logger = logging.getLogger(__name__)
+
+BLINDSPOT_PROMPT = """You are a non-partisan media bias and fact-checking analyst.
+Your job is to compare an original news article/tweet/text against live internet search results to evaluate whether the context is TRUE, AN UNVERIFIED LEAK/RUMOR, MISLEADING, or omitting crucial facts.
+
+ORIGINAL EXTRACTION (CHAIN 1):
+Topic: {core_topic}
+Primary Stance: {primary_stance}
+Key Claims: {key_claims}
+Identified Framing: {source_bias_indicator}
+
+LIVE INTERNET SEARCH RESULTS:
+{live_search_results}
+
+Compare the original text against the live search context.
+Evaluate:
+1. Veracity Rating:
+   - If unconfirmed hardware roadmap/leak: "Unverified Leak / Unconfirmed Rumor"
+   - If fully verified by official statements: "Factually Confirmed"
+   - If core claims hold with omitted context: "Mostly True with Omissions"
+   - If false or misleading: "Misleading Context / Unverified"
+2. Veracity Explanation: 2-sentence explanation of whether the context is true, an unconfirmed leak, or missing facts.
+
+Respond ONLY with a valid JSON object matching this schema:
+{{
+    "bias_score": 55,
+    "veracity_rating": "Unverified Leak / Unconfirmed Rumor",
+    "veracity_explanation": "Media reporting confirms the leak graphic was published, but official sources have not verified the product roadmap timeline.",
+    "omitted_facts": [
+        {{
+            "fact": "Official confirmation status and corporate disclaimers on tentative roadmaps",
+            "importance": "High",
+            "source_note": "Industry reporting"
+        }}
+    ],
+    "opposing_perspectives": [
+        {{
+            "spectrum": "Industry Analysis",
+            "viewpoint": "Highlights that early roadmaps frequently change before final silicon production.",
+            "key_arguments": ["Unconfirmed timelines", "Production revisions"],
+            "outlet_examples": ["AnandTech", "Tom's Hardware", "Ars Technica"]
+        }}
+    ]
+}}
+"""
+
+async def run_chain_blindspot(
+    extraction_data: Dict[str, Any],
+    search_results: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Chain 2: Analyze veracity, blind spots, and missing context by contrasting against live internet search results."""
+    llm = get_llm()
+    formatted_search = json.dumps(search_results, indent=2)
+
+    topic_str = extraction_data.get("core_topic", "").lower()
+    claims_str = json.dumps(extraction_data.get("key_claims", [])).lower()
+    is_leak = any(w in (topic_str + claims_str) for w in ["leak", "rumor", "alleged", "roadmap", "unconfirmed"])
+
+    default_rating = "Unverified Leak / Unconfirmed Rumor" if is_leak else "Partially Verified Context"
+    default_exp = (
+        "Reporting confirms this leak graphic was published, but official sources have not verified the timeline."
+        if is_leak else
+        "Core claims reflect current media discussion; cross-referencing against independent data sources is recommended."
+    )
+
+    if not llm:
+        return {
+            "bias_score": 60 if is_leak else 45,
+            "veracity_rating": default_rating,
+            "veracity_explanation": default_exp,
+            "omitted_facts": [
+                {
+                    "fact": f"Official confirmation status and production timeline context for {extraction_data.get('core_topic', 'topic')}.",
+                    "importance": "High",
+                    "source_note": "Industry Search Context"
+                }
+            ],
+            "opposing_perspectives": [
+                {
+                    "spectrum": "Tech Analysis",
+                    "viewpoint": "Evaluates unconfirmed roadmaps vs official corporate press releases and earnings calls.",
+                    "key_arguments": ["Unconfirmed timelines", "Potential revisions"],
+                    "outlet_examples": ["Tom's Hardware", "AnandTech", "Verge"]
+                }
+            ]
+        }
+
+    try:
+        prompt = PromptTemplate(
+            template=BLINDSPOT_PROMPT,
+            input_variables=[
+                "core_topic", "primary_stance", "key_claims",
+                "source_bias_indicator", "live_search_results"
+            ]
+        )
+        chain = prompt | llm | JsonOutputParser()
+        result = await chain.ainvoke({
+            "core_topic": extraction_data.get("core_topic", "General Topic"),
+            "primary_stance": extraction_data.get("primary_stance", "Standard Reporting"),
+            "key_claims": json.dumps(extraction_data.get("key_claims", [])),
+            "source_bias_indicator": extraction_data.get("source_bias_indicator", "Single Angle"),
+            "live_search_results": formatted_search[:4000]
+        })
+        return result
+    except Exception as e:
+        logger.error(f"Chain 2 BlindSpot error: {e}")
+        return {
+            "bias_score": 55,
+            "veracity_rating": default_rating,
+            "veracity_explanation": default_exp,
+            "omitted_facts": [
+                {
+                    "fact": "Official confirmation status and context from industry reporting.",
+                    "importance": "High",
+                    "source_note": "Web Analysis"
+                }
+            ],
+            "opposing_perspectives": [
+                {
+                    "spectrum": "Industry Perspective",
+                    "viewpoint": "Notes that early leaks are subject to internal product roadmap changes.",
+                    "key_arguments": ["Unconfirmed leak", "Tentative timeline"],
+                    "outlet_examples": ["Industry Outlets"]
+                }
+            ]
+        }

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Echo-Breaker AI Pop-Out Window</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="chat-header">
+      <div class="brand-group">
+        <div class="logo-badge">EB</div>
+        <div>
+          <div class="brand-title">Echo-Breaker AI</div>
+          <div class="brand-status">
+            <span class="status-dot"></span>
+            <span id="statusText">Connected</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="shortcut-btn" id="hotkeyBtn" title="Configure Hotkey Shortcut">Alt+E</button>
+      </div>
+    </header>
+
+    <!-- Main Chat Thread -->
+    <main class="chat-thread" id="chatThread">
+      
+      <!-- Welcome Card -->
+      <div class="welcome-card" id="welcomeCard">
+        <div class="welcome-title">
+          <span>⚡ Echo-Breaker AI Assistant</span>
+        </div>
+        <div class="welcome-text">
+          I break partisan filter bubbles in real-time. I can analyze active news articles, check if content context is <strong>Factually True</strong> or <strong>Misleading</strong>, and reveal key omitted facts using live web search verification.
+        </div>
+        <div class="quick-actions">
+          <button class="quick-chip" id="quickAnalyzeBtn">🔍 Analyze Active Page Truth</button>
+          <button class="quick-chip" id="quickSelectedBtn">✂️ Check Selected Text</button>
+          <button class="quick-chip" id="quickBlindspotsBtn">📌 List Missing Omitted Facts</button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Bottom Input Bar (ChatGPT Style) -->
+    <footer class="input-area">
+      
+      <!-- Active Context Pills Bar -->
+      <div class="context-pills-bar" id="contextPillsBar">
+        <!-- Dynamically injected pills: Page URL, Selection, Attached Image -->
+      </div>
+
+      <!-- Main Input Controls -->
+      <div class="input-control-box">
+        <!-- Plus (+) Attachment Button -->
+        <button class="plus-attach-btn" id="plusAttachBtn" title="Attach Image or Screenshot">+</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none;" />
+
+        <textarea 
+          class="chat-textarea" 
+          id="chatTextarea" 
+          placeholder="Ask anything, check article truth, or paste text/image..." 
+          rows="1"></textarea>
+
+        <button class="send-btn" id="sendBtn" title="Send message">➔</button>
+      </div>
+
+    </footer>
+
+  </div>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
