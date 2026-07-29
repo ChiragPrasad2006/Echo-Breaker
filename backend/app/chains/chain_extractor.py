@@ -16,19 +16,38 @@ GEMINI_MODELS = [
     "models/gemini-1.5-flash"
 ]
 
-def get_llm():
-    """Initializes LLM instance safely with fallback across supported Gemini and OpenAI models."""
+def get_llm(vision_required: bool = False):
+    """Initializes LLM instance safely with fallback across supported Gemini, Groq, and OpenAI models."""
+    llms = []
+
+    # If vision is NOT required and Groq is available, add Groq models FIRST (Primary)
+    if not vision_required and settings.GROQ_API_KEY:
+        try:
+            from langchain_groq import ChatGroq
+            llms.append(ChatGroq(
+                model="llama-3.1-70b-versatile",
+                api_key=settings.GROQ_API_KEY,
+                temperature=0.2
+            ))
+            llms.append(ChatGroq(
+                model="llama3-70b-8192",
+                api_key=settings.GROQ_API_KEY,
+                temperature=0.2
+            ))
+        except Exception as e:
+            logger.warning(f"Could not load ChatGroq: {e}")
+
+    # Add Gemini models (Primary for Vision, Fallback for Text)
     if settings.GEMINI_API_KEY:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
             for model_name in GEMINI_MODELS:
                 try:
-                    llm = ChatGoogleGenerativeAI(
+                    llms.append(ChatGoogleGenerativeAI(
                         model=model_name,
                         google_api_key=settings.GEMINI_API_KEY,
                         temperature=0.2
-                    )
-                    return llm
+                    ))
                 except Exception as e:
                     logger.debug(f"Model {model_name} init failed: {e}")
         except Exception as e:
@@ -37,19 +56,26 @@ def get_llm():
     if settings.OPENAI_API_KEY:
         try:
             from langchain_community.chat_models import ChatOpenAI
-            return ChatOpenAI(
+            llms.append(ChatOpenAI(
                 model="gpt-4o-mini",
                 api_key=settings.OPENAI_API_KEY,
                 temperature=0.2
-            )
+            ))
         except Exception as e:
             logger.warning(f"Could not load ChatOpenAI: {e}")
-
-    return None
+            
+    if not llms:
+        logger.error("No valid LLM could be initialized. Please check API keys.")
+        return None
+        
+    primary_llm = llms[0]
+    if len(llms) > 1:
+        return primary_llm.with_fallbacks(llms[1:])
+    return primary_llm
 
 async def extract_image_content(image_base64: str) -> str:
     """Uses multimodal LLM (Gemini Vision) to extract all text, tweets, and headlines from screenshot images."""
-    llm = get_llm()
+    llm = get_llm(vision_required=True)
     if not llm or not image_base64:
         return "Screenshot image payload analysis"
 

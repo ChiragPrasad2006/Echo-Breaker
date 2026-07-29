@@ -30,7 +30,7 @@ const fileInput = document.getElementById("fileInput");
 const chatTextarea = document.getElementById("chatTextarea");
 const sendBtn = document.getElementById("sendBtn");
 
-// Initialize Context from URL params & Listen for Real-Time Tab Changes
+// Initialize Context & Query Native Browser Extension Hotkeys dynamically
 document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const urlParam = params.get("url");
@@ -45,6 +45,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (textParam && textParam.length > 2) {
     contextState.selectedText = decodeURIComponent(textParam);
   }
+
+  // Query Native Browser Shortcut API (Brave/Chrome/Edge)
+  updateNativeHotkeyBadge();
 
   if (typeof chrome !== "undefined" && chrome.runtime) {
     chrome.runtime.onMessage.addListener((message) => {
@@ -62,15 +65,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fetchActiveContext();
     setInterval(fetchActiveContext, 1500);
-
-    chrome.storage.sync.get(["customHotkey"], (res) => {
-      if (res.customHotkey) hotkeyBtn.textContent = res.customHotkey;
-    });
   }
 
   renderContextPills();
   checkBackendHealth();
 });
+
+// Reads the actual shortcut key configured in Brave / Chrome / Edge settings
+function updateNativeHotkeyBadge() {
+  if (typeof chrome !== "undefined" && chrome.commands && chrome.commands.getAll) {
+    chrome.commands.getAll((commands) => {
+      if (commands && commands.length > 0) {
+        const toggleCmd = commands.find(c => c.name === "toggle-echo-breaker") || commands[0];
+        if (toggleCmd && toggleCmd.shortcut) {
+          hotkeyBtn.textContent = toggleCmd.shortcut;
+          return;
+        }
+      }
+    });
+  }
+
+  // Fallback to storage or default
+  if (typeof chrome !== "undefined" && chrome.storage) {
+    chrome.storage.sync.get(["customHotkey"], (res) => {
+      if (res && res.customHotkey) hotkeyBtn.textContent = res.customHotkey;
+    });
+  }
+}
 
 function fetchActiveContext() {
   if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
@@ -104,17 +125,13 @@ async function checkBackendHealth() {
   }
 }
 
+// Click hotkey badge to open browser extension shortcut settings directly
 hotkeyBtn.addEventListener("click", () => {
   if (typeof chrome !== "undefined" && chrome.tabs) {
-    chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
-  }
-  const currentKey = hotkeyBtn.textContent;
-  const newKey = prompt("Set Custom Hotkey Shortcut (e.g. Alt+E, Ctrl+Shift+E, Alt+X):", currentKey);
-  if (newKey && newKey.trim()) {
-    hotkeyBtn.textContent = newKey.trim();
-    if (typeof chrome !== "undefined" && chrome.storage) {
-      chrome.storage.sync.set({ customHotkey: newKey.trim() });
-    }
+    const shortcutsUrl = navigator.userAgent.includes("Brave") ? "brave://extensions/shortcuts" : "chrome://extensions/shortcuts";
+    chrome.tabs.create({ url: shortcutsUrl });
+  } else {
+    alert("Open browser extension shortcuts settings to edit your hotkey (e.g. brave://extensions/shortcuts)");
   }
 });
 
@@ -368,9 +385,21 @@ async function runFollowUpChat(userQuery) {
     formattedAns = formattedAns.replace(/\n\n/g, '<br/><br/>');
     formattedAns = formattedAns.replace(/\n/g, '<br/>');
 
+    let veracityHtml = "";
+    if (data.veracity_check) {
+      let vCheckStr = escapeHtml(data.veracity_check);
+      let vColor = "#34d399";
+      let vIcon = "✓";
+      if (vCheckStr.toLowerCase().includes("limit") || vCheckStr.toLowerCase().includes("error") || vCheckStr.toLowerCase().includes("exceeded") || vCheckStr.toLowerCase().includes("unconfirmed") || vCheckStr.toLowerCase().includes("partially")) {
+        vColor = "#facc15"; // Yellow warning
+        vIcon = "⚠️";
+      }
+      veracityHtml = `<div style="font-size:11px; color:${vColor}; font-weight:bold; margin-top:8px;">${vIcon} ${vCheckStr}</div>`;
+    }
+
     card.querySelector(".assistant-card").innerHTML = `
       <div style="font-size:13px; line-height:1.6; color:#f3f4f6;">${formattedAns}</div>
-      ${data.veracity_check ? `<div style="font-size:11px; color:#34d399; font-weight:bold; margin-top:8px;">✓ ${escapeHtml(data.veracity_check)}</div>` : ""}
+      ${veracityHtml}
       ${citationsHtml}
     `;
 

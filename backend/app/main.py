@@ -51,7 +51,6 @@ def health():
 
 @app.post("/api/v1/scrape", response_model=ScrapeResponse)
 async def scrape_endpoint(payload: ScrapeRequest):
-    """Scrapes raw article text and metadata from a given URL."""
     if not payload.url:
         raise HTTPException(status_code=400, detail="URL is required")
     scraped = await scrape_article_url(payload.url)
@@ -59,11 +58,6 @@ async def scrape_endpoint(payload: ScrapeRequest):
 
 @app.post("/api/v1/analyze", response_model=BlindSpotReport)
 async def analyze_endpoint(payload: AnalyzeRequest):
-    """
-    Main analysis endpoint for Echo-Breaker.
-    Accepts article URL, selected text, or screenshot image payload,
-    scrapes article text if URL provided, and executes Pattern 3 LangChain Pipeline.
-    """
     article_text = payload.text
     article_url = payload.url
     article_title = payload.title
@@ -100,10 +94,6 @@ def build_focused_topic_query(
     context_url: Optional[str],
     report_summary: Optional[str]
 ) -> str:
-    """
-    Extracts explicit topic nouns from image OCR, page context, or report summary
-    to prevent generic conversational phrases (like 'is the leak true?') from searching random internet topics.
-    """
     candidates = []
 
     if image_text and len(image_text) > 15 and "error" not in image_text.lower():
@@ -115,44 +105,33 @@ def build_focused_topic_query(
 
     combined = " ".join(candidates)
 
-    # Clean out placeholder boilerplate
     clean_combined = re.sub(
         r'Pasted article screenshot payload|Screenshot image payload analysis|Image screenshot analysis|Web article context',
         '', combined, flags=re.IGNORECASE
     ).strip()
 
-    # If we have substantial extracted content, use its top terms
     if len(clean_combined) > 15:
-        # Take first 120 chars of clean extracted context
         return clean_combined[:140].strip()
 
-    # Fallback to URL / Title parsing
     if context_url:
         clean_url = context_url.replace("https://", "").replace("http://", "").replace("twitter.com/", "").replace("x.com/", "")
         clean_url = re.sub(r'[^a-zA-Z0-9\s]', ' ', clean_url)
         return f"{clean_url[:80]} news"
 
-    # Last resort: strip conversational fluff from user question
-    cleaned_q = re.sub(r'^(is the|is this|tf isnt|how true is|can u|tell me if|is it)\s+', '', question, flags=re.IGNORECASE).strip()
-    return cleaned_q if len(cleaned_q) > 5 else "hardware technology leak news"
+    cleaned_q = re.sub(r'^(is the|is this|tf isnt|how true is|can u|tell me if|is it|what is)\s+', '', question, flags=re.IGNORECASE).strip()
+    return cleaned_q if len(cleaned_q) > 5 else "hardware technology news"
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
 async def chat_endpoint(payload: ChatRequest):
-    """
-    Interactive Q&A Chatbot endpoint.
-    Uses Gemini Vision for image OCR and executes targeted web searches specifically for the subject matter.
-    """
     question = payload.question
     selected_text = payload.selected_text or ""
     report_summary = payload.report_summary or ""
 
-    # Step 1: Perform Vision OCR on attached screenshot if provided
     image_ocr_text = ""
     if payload.image_base64 and len(payload.image_base64) > 50:
         logger.info("Chatbot: Performing Gemini Vision OCR on image payload...")
         image_ocr_text = await extract_image_content(payload.image_base64)
 
-    # Step 2: Build targeted topic search query (avoids generic "is the leak true?" searching COVID-19)
     search_query = build_focused_topic_query(
         question=question,
         selected_text=selected_text,
@@ -160,6 +139,13 @@ async def chat_endpoint(payload: ChatRequest):
         context_url=payload.context_url,
         report_summary=report_summary
     )
+
+    # Use the question as part of the search query if it is an informational question
+    is_veracity_query = any(w in question.lower() for w in ["true", "false", "real", "fake", "verify", "fact check", "legit", "accurate", "leak", "rumor"])
+    
+    if not is_veracity_query:
+        # If it's a general question like "what is the current lineup", append it to search!
+        search_query = f"{search_query[:80]} {question[:60]}".strip()
 
     logger.info(f"Chatbot: Target Topic Search Query built: '{search_query}'")
     live_results = await search_live_internet(search_query, max_results=4)
@@ -175,31 +161,35 @@ async def chat_endpoint(payload: ChatRequest):
     llm = get_llm()
     if llm:
         try:
-            chat_prompt = PromptTemplate(
-                template="""You are Echo-Breaker AI, a non-partisan investigative analyst and media truth evaluator.
-Analyze the user's question, the provided context/image OCR text, and the live web search results.
-
-USER QUESTION: {question}
-ATTACHED CONTEXT / SCREENSHOT OCR TEXT: {combined_context}
-REPORT SUMMARY: {report_summary}
-LIVE WEB SEARCH RESULTS: {search_results}
-
-Carefully evaluate the veracity of the claim:
+            if is_veracity_query:
+                system_instructions = """Carefully evaluate the veracity of the claim:
 - If the content is an unconfirmed leak, rumor, or hardware roadmap leak: output **VERDICT: ⚠️ UNVERIFIED LEAK / UNCONFIRMED RUMOR — Reporting confirms this leak was posted, but official manufacturer verification is pending.**
 - If the content is fully confirmed by official statements: output **VERDICT: ✅ FACTUALLY CONFIRMED — Verified by official statements and news reporting.**
 - If the claim is false, misleading, or debunked: output **VERDICT: 🔴 MISLEADING / UNVERIFIED CLAIM — Content is exaggerated, unconfirmed, or misleading.**
 
-Followed by 2 detailed paragraphs explaining:
-1. What the image/post/tweet is asserting (e.g. author, headline, specific hardware/claim).
-2. What live search facts and reporting demonstrate regarding its authenticity and confirmation status.
+Followed by a detailed explanation assessing the truth of the post based on web search context."""
+            else:
+                system_instructions = """You are a helpful, conversational AI assistant.
+Answer the user's question directly based on the provided context and live web search results.
+Do NOT output a VERDICT banner. Just provide a clear, natural language answer."""
+
+            chat_prompt = PromptTemplate(
+                template=f"""You are Echo-Breaker AI, a non-partisan investigative assistant.
+Analyze the user's question, the provided context, and the live web search results.
+
+USER QUESTION: {{question}}
+ATTACHED CONTEXT: {{combined_context}}
+LIVE WEB SEARCH RESULTS: {{search_results}}
+
+{system_instructions}
 """,
-                input_variables=["question", "combined_context", "report_summary", "search_results"]
+                input_variables=["question", "combined_context", "search_results"]
             )
+            
             chain = chat_prompt | llm
             response_obj = await chain.ainvoke({
                 "question": question,
-                "combined_context": combined_context[:3000] or "Hardware GPU leak post",
-                "report_summary": report_summary[:1000],
+                "combined_context": combined_context[:3000] or "General context",
                 "search_results": str([r for r in live_results])[:3000]
             })
 
@@ -210,35 +200,42 @@ Followed by 2 detailed paragraphs explaining:
                 citations=citations
             )
         except Exception as e:
-            logger.error(f"Chatbot LLM error: {e}")
+            error_str = str(e)
+            logger.error(f"Chatbot LLM error: {error_str}")
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "Rate limit" in error_str:
+                return ChatResponse(
+                    answer="**⚠️ API Quota Exceeded:** You have reached the rate limit for your Gemini Free Tier API key (15 requests per minute). Please wait 60 seconds before trying again, or upgrade your API key in the `.env` file.",
+                    veracity_check="API Rate Limit Exceeded",
+                    citations=[]
+                )
 
-    # Fallback response using targeted search query results
+    # Fallback Handling
     first_title = live_results[0].get("title", "Industry Web Reporting") if live_results else "tech news archives"
-    topic_label = search_query[:80] or "hardware leak"
+    topic_label = search_query[:80] or "the topic"
 
-    if is_leak_or_rumor:
-        verdict_str = "**VERDICT: ⚠️ UNVERIFIED LEAK / UNCONFIRMED RUMOR — Reporting confirms this leak was posted, but official manufacturer verification is pending.**"
-        veracity_badge_text = "Unconfirmed Leak / Rumor"
+    if is_veracity_query:
+        if is_leak_or_rumor:
+            verdict_str = "**VERDICT: ⚠️ UNVERIFIED LEAK / UNCONFIRMED RUMOR — Reporting confirms this leak was posted, but official manufacturer verification is pending.**\n\n"
+            veracity_badge_text = "Unconfirmed Leak / Rumor"
+        else:
+            verdict_str = "**VERDICT: ⚠️ PARTIALLY VERIFIED — Core reporting exists, but claims require independent verification.**\n\n"
+            veracity_badge_text = "Partially Verified Context"
+            
         explanation = (
+            f"{verdict_str}"
             f"**Context Explanation:**\n"
-            f"Regarding '{question}': The topic refers to hardware leaks/rumors regarding {topic_label}.\n\n"
-            f"Live web search cross-referencing industry reporting ({first_title}) shows that while media outlets have covered the leaked roadmap image, "
-            f"the manufacturer has not officially confirmed the release timeline. Leaked roadmaps are subject to internal revision before launch."
+            f"Regarding '{question}': The topic refers to {topic_label}.\n\n"
+            f"Live web search cross-referencing industry reporting ({first_title}) shows ongoing coverage, but requires cross-checking against official announcements."
         )
     else:
-        verdict_str = "**VERDICT: ⚠️ PARTIALLY VERIFIED — Core reporting exists, but claims require independent verification.**"
-        veracity_badge_text = "Partially Verified Context"
+        veracity_badge_text = "Answered from live web search"
         explanation = (
-            f"**Context Explanation:**\n"
-            f"Regarding '{question}': The content discusses {topic_label}.\n\n"
-            f"Cross-referencing live web coverage ({first_title}) confirms ongoing public reporting. "
-            f"Evaluating the validity of specific claims requires looking beyond social media posts to cross-check official announcements."
+            f"Based on live web search results ({first_title}), current coverage indicates active developments regarding {topic_label}. "
+            f"Please refer to the verified sources below for detailed specific answers to your question."
         )
 
-    fallback_answer = f"{verdict_str}\n\n{explanation}"
-
     return ChatResponse(
-        answer=fallback_answer,
+        answer=explanation,
         veracity_check=veracity_badge_text,
         citations=citations
     )
