@@ -88,7 +88,7 @@ Echo-Breaker strictly implements **Pattern 3 — Multi-Step LangChain Pipeline**
 
 ## 🎮 Usage Instructions
 
-- **Keyboard Shortcut**: Press `Alt+E` on any open webpage to open or close the Echo-Breaker sidebar.
+- **Keyboard Shortcut**: Press `Alt+B` on any open webpage to open or close the Echo-Breaker sidebar.
 - **Selected Text Analysis**: Highlight any text on an article page, then press `Alt+E` (or right-click and choose *"Break Filter Bubble with Echo-Breaker"*).
 - **Pasted Screenshot Analysis**: Switch to the **Screenshot** mode in the sidebar and press `Ctrl+V` to paste an image of an article or news clip.
 - **Full Page Analysis**: Select the **Active Page** tab in the sidebar and click **Break Filter Bubble**.
