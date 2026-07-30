@@ -16,7 +16,7 @@ GEMINI_MODELS = [
     "models/gemini-1.5-flash"
 ]
 
-def get_llm(vision_required: bool = False):
+def get_llm(vision_required: bool = False, use_instant: bool = False):
     """Initializes LLM instance safely with fallback across supported Gemini, Groq, and OpenAI models."""
     llms = []
 
@@ -24,12 +24,34 @@ def get_llm(vision_required: bool = False):
     if not vision_required and settings.GROQ_API_KEY:
         try:
             from langchain_groq import ChatGroq
-            llms.append(ChatGroq(
-                model="llama-3.3-70b-versatile",
-                api_key=settings.GROQ_API_KEY,
-                temperature=0.2,
-                max_retries=0
-            ))
+            if use_instant:
+                # Prioritize Llama-3.1 8b instant for intermediate steps
+                llms.append(ChatGroq(
+                    model="llama-3.1-8b-instant",
+                    api_key=settings.GROQ_API_KEY,
+                    temperature=0.2,
+                    max_retries=0
+                ))
+                llms.append(ChatGroq(
+                    model="llama-3.3-70b-versatile",
+                    api_key=settings.GROQ_API_KEY,
+                    temperature=0.2,
+                    max_retries=0
+                ))
+            else:
+                # Primary chains: Llama-3.3 70b versatile, fallback to Llama-3.1 8b instant
+                llms.append(ChatGroq(
+                    model="llama-3.3-70b-versatile",
+                    api_key=settings.GROQ_API_KEY,
+                    temperature=0.2,
+                    max_retries=0
+                ))
+                llms.append(ChatGroq(
+                    model="llama-3.1-8b-instant",
+                    api_key=settings.GROQ_API_KEY,
+                    temperature=0.2,
+                    max_retries=0
+                ))
             llms.append(ChatGroq(
                 model="llama3-70b-8192",
                 api_key=settings.GROQ_API_KEY,
@@ -130,7 +152,7 @@ Respond ONLY with a valid JSON object matching this schema:
 
 async def run_chain_extractor(content: str, metadata: str = "") -> Dict[str, Any]:
     """Chain 1: Extract core topic, claims, framing, and live internet search queries."""
-    llm = get_llm()
+    llm = get_llm(use_instant=True)
     if not llm:
         topic_preview = content[:80].replace("\n", " ").strip() or "News Article Analysis"
         return {

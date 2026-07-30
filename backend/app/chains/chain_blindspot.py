@@ -11,6 +11,9 @@ BLINDSPOT_PROMPT = """You are a non-partisan media bias and fact-checking analys
 Your job is to compare an original news article/tweet/text against live internet search results to evaluate whether the context is TRUE, AN UNVERIFIED LEAK/RUMOR, MISLEADING, or omitting crucial facts.
 CRITICAL: ALL OUTPUT AND SUMMARIES MUST BE IN ENGLISH, REGARDLESS OF THE SOURCE CONTENT LANGUAGE.
 
+ORIGINAL ARTICLE TEXT:
+{original_text}
+
 ORIGINAL EXTRACTION (CHAIN 1):
 Topic: {core_topic}
 Primary Stance: {primary_stance}
@@ -20,7 +23,9 @@ Identified Framing: {source_bias_indicator}
 LIVE INTERNET SEARCH RESULTS:
 {live_search_results}
 
-Compare the original text against the live search context.
+Compare the ORIGINAL ARTICLE TEXT against the LIVE INTERNET SEARCH RESULTS.
+Your key goal is to identify concrete, technical, or structural omissions present in the source article. Actively cross-reference the raw article text against the provided live web search context to identify omissions (such as enthusiasm gaps, gerrymandering, statistical margins, missing citations, operational realities, or unverified timelines).
+
 Evaluate:
 1. Veracity Rating:
    - If unconfirmed hardware roadmap/leak: "Unverified Leak / Unconfirmed Rumor"
@@ -28,6 +33,16 @@ Evaluate:
    - If core claims hold with omitted context: "Mostly True with Omissions"
    - If false or misleading: "Misleading Context / Unverified"
 2. Veracity Explanation: 2-sentence explanation of whether the context is true, an unconfirmed leak, or missing facts.
+3. Key Omitted Facts (for "omitted_facts" list):
+   - You MUST extract hyper-specific facts, names, figures, numbers, dates, specific policies, official records, or corporate announcements.
+   - Strictly FORBID broad, generic, or vague phrases such as "Historical context", "Local perspectives", "More nuance needed", "Background info", "Additional details", "Opposing viewpoints", "More details", "Live web context", "General background".
+   - EVERY item in the "omitted_facts" list MUST identify concrete, technical, or structural gaps present in the source material from one of these categories:
+     * Specific Statutory / Legal Provisions (e.g., missing citations to Section 69A IT Act, IT Rules amendments, or judicial rulings).
+     * Operational & Institutional Realities (e.g., capacity bottlenecks, lack of regional fact-checking cells, platform compliance rules).
+     * Missing Data Points / Metrics (e.g., specific missing casualty numbers, unmentioned financial figures, enthusiasm gaps, gerrymandering, statistical margins, or unverified timelines).
+   - Require each item to state both the "fact" and the "source" (e.g., "IT Rules Jurisprudence", "PIB FCU Guidelines", "Ministry of Electronics and IT (MeitY)").
+   - CRITICAL: Whenever omissions or missing context are mentioned in the veracity explanation or summary, they MUST also be explicitly formatted as objects inside the "omitted_facts" JSON array. The array must NEVER be returned as empty when omissions are mentioned in the text.
+   - If no specific, verifiable omitted facts exist, return "omitted_facts" as an empty list [].
 
 Respond ONLY with a valid JSON object matching this schema:
 {{
@@ -38,7 +53,7 @@ Respond ONLY with a valid JSON object matching this schema:
         {{
             "fact": "Official confirmation status and corporate disclaimers on tentative roadmaps",
             "importance": "High",
-            "source_note": "Industry reporting"
+            "source": "Industry reporting"
         }}
     ],
     "opposing_perspectives": [
@@ -54,7 +69,8 @@ Respond ONLY with a valid JSON object matching this schema:
 
 async def run_chain_blindspot(
     extraction_data: Dict[str, Any],
-    search_results: List[Dict[str, Any]]
+    search_results: List[Dict[str, Any]],
+    original_text: str = ""
 ) -> Dict[str, Any]:
     """Chain 2: Analyze veracity, blind spots, and missing context by contrasting against live internet search results."""
     llm = get_llm()
@@ -98,7 +114,7 @@ async def run_chain_blindspot(
             template=BLINDSPOT_PROMPT,
             input_variables=[
                 "core_topic", "primary_stance", "key_claims",
-                "source_bias_indicator", "live_search_results"
+                "source_bias_indicator", "live_search_results", "original_text"
             ]
         )
         chain = prompt | llm | JsonOutputParser()
@@ -107,7 +123,8 @@ async def run_chain_blindspot(
             "primary_stance": extraction_data.get("primary_stance", "Standard Reporting"),
             "key_claims": json.dumps(extraction_data.get("key_claims", [])),
             "source_bias_indicator": extraction_data.get("source_bias_indicator", "Single Angle"),
-            "live_search_results": formatted_search[:4000]
+            "live_search_results": formatted_search[:4000],
+            "original_text": original_text[:4000]
         })
         return result
     except Exception as e:

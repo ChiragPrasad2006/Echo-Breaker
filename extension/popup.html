@@ -19,21 +19,21 @@
       gap: 10px;
       margin-bottom: 14px;
     }
-    .logo {
+    .logo-svg {
       width: 32px;
       height: 32px;
-      background: linear-gradient(135deg, #06b6d4, #8b5cf6);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 15px;
-      color: white;
+      flex-shrink: 0;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .header:hover .logo-svg {
+      transform: scale(1.02);
     }
     h2 {
-      font-size: 15px;
+      font-size: 13px;
       margin: 0;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
     }
     .status-card {
       background: rgba(31, 41, 55, 0.7);
@@ -109,9 +109,13 @@
 </head>
 <body>
   <div class="header">
-    <div class="logo">EB</div>
+    <svg class="logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="6" fill="#15171A" stroke="rgba(255, 255, 255, 0.07)" stroke-width="1.2"/>
+      <path d="M8 9H17V11H10V14H16V16H10V19H17V21H8V9Z" fill="#FFFFFF"/>
+      <path d="M18 9H22C23.6569 9 25 10.3431 25 12C25 13.1046 24.3 14.1 23.2 14.6C24.3 15.1 25 16.1 25 17.2C25 18.8569 23.6569 20.2 22 20.2H18V9ZM20 11V13.8H21.8C22.4627 13.8 23 13.2627 23 12.6C23 11.9373 22.4627 11.4 21.8 11.4H20ZM20 15.6V18.2H22C22.6627 18.2 23.2 17.6627 23.2 17C23.2 16.3373 22.6627 15.8 22 15.8H20Z" fill="#00F2FE"/>
+    </svg>
     <div>
-      <h2>Echo-Breaker AI</h2>
+      <h2>ECHO-BREAKER</h2>
       <div style="font-size: 10px; color: #9ca3af;">Truth & Blind Spot Analyzer</div>
     </div>
   </div>

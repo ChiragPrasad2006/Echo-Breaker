@@ -3,6 +3,8 @@
 const BACKEND_URL = "http://127.0.0.1:8000/api/v1/analyze";
 const CHAT_URL = "http://127.0.0.1:8000/api/v1/chat";
 
+let currentReportData = null;
+
 let contextState = {
   url: "",
   title: "",
@@ -142,7 +144,7 @@ function renderContextPills() {
     const pill = document.createElement("div");
     pill.className = "context-pill";
     const titleSnippet = contextState.title ? contextState.title.slice(0, 25) + "..." : "Active Page";
-    pill.innerHTML = `🌐 Page: ${titleSnippet} <span class="context-pill-close" data-type="url">&times;</span>`;
+    pill.innerHTML = `PAGE: ${titleSnippet} <span class="context-pill-close" data-type="url">&times;</span>`;
     contextPillsBar.appendChild(pill);
   }
 
@@ -150,14 +152,14 @@ function renderContextPills() {
     const pill = document.createElement("div");
     pill.className = "context-pill";
     const textSnippet = contextState.selectedText.slice(0, 25) + "...";
-    pill.innerHTML = `✂️ Text: "${textSnippet}" <span class="context-pill-close" data-type="text">&times;</span>`;
+    pill.innerHTML = `TEXT: "${textSnippet}" <span class="context-pill-close" data-type="text">&times;</span>`;
     contextPillsBar.appendChild(pill);
   }
 
   if (contextState.imageBase64) {
     const pill = document.createElement("div");
     pill.className = "context-pill";
-    pill.innerHTML = `📸 Image Attached <span class="context-pill-close" data-type="image">&times;</span>`;
+    pill.innerHTML = `IMAGE ATTACHED <span class="context-pill-close" data-type="image">&times;</span>`;
     contextPillsBar.appendChild(pill);
   }
 
@@ -310,10 +312,45 @@ async function runFullAnalysisPipeline(userQuery) {
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const report = await response.json();
+    currentReportData = report;
     contextState.lastReport = report;
     contextState.extractedTopic = report.core_topic || contextState.title;
 
     card.innerHTML = renderReportCardHtml(report);
+
+    // Animate pointer left
+    const score = report.bias_score !== undefined && report.bias_score !== null ? report.bias_score : 55;
+    setTimeout(() => {
+      const pointer = card.querySelector(".meter-pointer");
+      if (pointer) {
+        pointer.style.left = `${100 - score}%`;
+      }
+    }, 50);
+
+    // Bind inline card buttons
+    const copyBtn = card.querySelector("#copyReportBtn");
+    const downloadBtn = card.querySelector("#downloadPdfBtn");
+    if (copyBtn) copyBtn.addEventListener("click", () => handleCopyReport(report, copyBtn));
+    if (downloadBtn) downloadBtn.addEventListener("click", () => handleDownloadPdf(report));
+
+    // Show and bind global actions footer
+    const globalFooter = document.getElementById("globalActionsFooter");
+    if (globalFooter) {
+      globalFooter.style.display = "flex";
+      chatThread.style.paddingBottom = "130px";
+      const globalCopyBtn = document.getElementById("globalCopyReportBtn");
+      const globalDownloadBtn = document.getElementById("globalDownloadPdfBtn");
+      if (globalCopyBtn && globalDownloadBtn) {
+        const newGlobalCopyBtn = globalCopyBtn.cloneNode(true);
+        const newGlobalDownloadBtn = globalDownloadBtn.cloneNode(true);
+        globalCopyBtn.parentNode.replaceChild(newGlobalCopyBtn, globalCopyBtn);
+        globalDownloadBtn.parentNode.replaceChild(newGlobalDownloadBtn, globalDownloadBtn);
+
+        newGlobalCopyBtn.addEventListener("click", () => handleCopyReport(report, newGlobalCopyBtn));
+        newGlobalDownloadBtn.addEventListener("click", () => handleDownloadPdf(report));
+      }
+    }
+
     chatThread.scrollTop = chatThread.scrollHeight;
 
   } catch (err) {
@@ -360,8 +397,8 @@ async function runFollowUpChat(userQuery) {
     let citationsHtml = "";
     if (data.citations && data.citations.length > 0) {
       citationsHtml = `
-        <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-color); font-size:11px;">
-          <strong style="color:var(--text-muted);">🌐 Verified Live Web Sources:</strong><br/>
+        <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-stealth); font-size:11px;">
+          <strong style="color:var(--text-muted); text-transform:uppercase; letter-spacing:0.02em;">Verified Live Web Sources:</strong><br/>
           ${data.citations.map(c => `• <a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a>`).join("<br/>")}
         </div>
       `;
@@ -388,17 +425,15 @@ async function runFollowUpChat(userQuery) {
     let veracityHtml = "";
     if (data.veracity_check) {
       let vCheckStr = escapeHtml(data.veracity_check);
-      let vColor = "#34d399";
-      let vIcon = "✓";
+      let vColor = "var(--accent-cyan)";
       if (vCheckStr.toLowerCase().includes("limit") || vCheckStr.toLowerCase().includes("error") || vCheckStr.toLowerCase().includes("exceeded") || vCheckStr.toLowerCase().includes("unconfirmed") || vCheckStr.toLowerCase().includes("partially")) {
-        vColor = "#facc15"; // Yellow warning
-        vIcon = "⚠️";
+        vColor = "var(--accent-yellow)"; // Yellow warning
       }
-      veracityHtml = `<div style="font-size:11px; color:${vColor}; font-weight:bold; margin-top:8px;">${vIcon} ${vCheckStr}</div>`;
+      veracityHtml = `<div style="font-size:11px; color:${vColor}; font-weight:bold; margin-top:8px; text-transform:uppercase; letter-spacing:0.02em;">${vCheckStr}</div>`;
     }
 
     card.querySelector(".assistant-card").innerHTML = `
-      <div style="font-size:13px; line-height:1.6; color:#f3f4f6;">${formattedAns}</div>
+      <div class="general-response-text">${formattedAns}</div>
       ${veracityHtml}
       ${citationsHtml}
     `;
@@ -413,98 +448,131 @@ async function runFollowUpChat(userQuery) {
 
 function renderReportCardHtml(report) {
   const veracity = report.veracity_rating || "Mostly True with Omissions";
-  let bannerClass = "mostly-true";
-  let veracityIcon = "⚠️";
-
-  if (veracity.toLowerCase().includes("factually confirmed") || veracity.toLowerCase().includes("factually true")) {
-    bannerClass = "true";
-    veracityIcon = "✅";
-  } else if (veracity.toLowerCase().includes("leak") || veracity.toLowerCase().includes("rumor")) {
-    bannerClass = "mostly-true";
-    veracityIcon = "⚠️";
-  } else if (veracity.toLowerCase().includes("misleading") || veracity.toLowerCase().includes("false")) {
-    bannerClass = "misleading";
-    veracityIcon = "🔴";
-  }
-
   const score = report.bias_score !== undefined && report.bias_score !== null ? report.bias_score : 55;
 
   let omittedHtml = "";
-  if (report.omitted_facts && report.omitted_facts.length > 0) {
-    omittedHtml = report.omitted_facts.map(f => `
-      <div class="fact-item">
-        <strong>${escapeHtml(f.fact)}</strong>
-        ${f.source_note ? `<div style="color:#9ca3af; font-size:10px; margin-top:2px;">Source: ${escapeHtml(f.source_note)}</div>` : ""}
-      </div>
-    `).join("");
+  const factsList = report.key_omitted_facts || report.omitted_facts || [];
+  const validFacts = Array.isArray(factsList)
+    ? factsList.filter(f => f && f.fact && f.fact.trim().length > 0)
+    : [];
+
+  const isFallback = validFacts.length === 0 || 
+    (validFacts.length === 1 && validFacts[0].fact === "No critical statutory, legal, or factual omissions detected in the primary claims.");
+
+  if (!isFallback) {
+    omittedHtml = validFacts.map(f => {
+      const sourceVal = f.source || f.verifying_source || f.source_note || "Verification Engine";
+      return `
+        <div class="fact-card">
+          <div class="omitted-card-text">${escapeHtml(f.fact)}</div>
+          <div class="fact-source">Source: ${escapeHtml(sourceVal)}</div>
+        </div>
+      `;
+    }).join("");
   } else {
-    omittedHtml = `<div style="color:var(--text-muted); font-size:11px;">No critical omitted facts identified.</div>`;
+    omittedHtml = `
+      <div class="fact-card fallback-card" style="border-left: 3px solid var(--accent-cyan); background: rgba(0, 242, 254, 0.02); padding: 12px; border-radius: var(--radius-sm);">
+        <div class="omitted-card-text" style="color: var(--text-high-contrast); font-weight: 500; font-size: 11px; line-height: 1.5; margin-bottom: 4px;">No critical statutory, legal, or factual omissions detected in the primary claims.</div>
+        <div class="fact-source" style="color: var(--accent-cyan); font-weight: 700; font-size: 9px; text-transform: uppercase;">Verification Engine</div>
+      </div>
+    `;
   }
 
   let perspectivesHtml = "";
   if (report.opposing_perspectives && report.opposing_perspectives.length > 0) {
     perspectivesHtml = report.opposing_perspectives.map(p => `
       <div class="perspective-item">
-        <div class="perspective-tag">${escapeHtml(p.spectrum)}</div>
-        <div>${escapeHtml(p.viewpoint)}</div>
-        ${p.outlet_examples ? `<div style="font-size:10px; color:#6b7280; margin-top:2px;">Outlets: ${escapeHtml(p.outlet_examples.join(", "))}</div>` : ""}
+        <div class="perspective-spectrum">${escapeHtml(p.spectrum)}</div>
+        <div class="perspective-view">${escapeHtml(p.viewpoint)}</div>
+        ${p.outlet_examples && p.outlet_examples.length > 0 ? `<div class="perspective-outlets">Outlets: ${escapeHtml(p.outlet_examples.join(", "))}</div>` : ""}
       </div>
     `).join("");
+  } else {
+    perspectivesHtml = `<div style="color:var(--text-muted); font-size:11px;">No opposing perspectives identified.</div>`;
   }
 
   let citationsHtml = "";
   if (report.internet_citations && report.internet_citations.length > 0) {
     citationsHtml = report.internet_citations.map(c => `
-      <div><a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a></div>
+      <div class="citation-item">
+        <a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a>
+      </div>
     `).join("");
   }
 
   return `
     <div class="assistant-card">
       
-      <div class="veracity-banner ${bannerClass}">
-        <span>${veracityIcon}</span>
-        <span>${escapeHtml(veracity)}</span>
-      </div>
-      <div style="font-size:11px; color:#d1d5db; line-height:1.4;">
-        ${escapeHtml(report.veracity_explanation || "Verified against live internet search context.")}
-      </div>
-
-      <div class="score-box">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="report-section-title">Blind Spot Risk Index</span>
-          <span style="font-weight:800; font-size:16px;">${score}/100</span>
+      <!-- Dynamic Truth & Blind Spot Meter -->
+      <div class="meter-container">
+        <div class="meter-header">
+          <span class="meter-status">${escapeHtml(veracity)}</span>
+          <span class="meter-score">TRUTH SCORE: ${100 - score}/100</span>
         </div>
-        <div class="score-bar-bg">
-          <div class="score-bar-fill" style="width: ${score}%;"></div>
+        <div class="meter-track">
+          <div class="meter-pointer" style="left: 0%;"></div>
         </div>
-        <div style="font-size:10px; color:#9ca3af; display:flex; justify-content:space-between;">
-          <span>Framing: ${escapeHtml(report.detected_framing || "Unconfirmed Leak")}</span>
-          <span>${score > 60 ? "High Echo Chamber Risk" : "Balanced Coverage"}</span>
+        <div class="meter-labels">
+          <span>Mostly False</span>
+          <span>Mostly True</span>
+        </div>
+        <div class="meter-legend">
+          Truth Score is computed as 100 - Blind Spot Risk. Higher score represents balanced, factual context with fewer omitted details.
         </div>
       </div>
 
-      <div>
-        <div class="report-section-title">Core Event Summary</div>
-        <div style="color:#e5e7eb; line-height:1.4;">${escapeHtml(report.core_summary)}</div>
-      </div>
-
-      <div>
-        <div class="report-section-title">📌 Key Omitted Facts & Context</div>
-        ${omittedHtml}
-      </div>
-
-      <div>
-        <div class="report-section-title">⚖️ Multi-Spectrum Perspectives</div>
-        ${perspectivesHtml}
-      </div>
-
-      ${citationsHtml ? `
-        <div>
-          <div class="report-section-title">🌐 Live Web Sources</div>
-          ${citationsHtml}
+      <!-- Two-Column Analytical Layout -->
+      <div class="dashboard-grid">
+        
+        <!-- Left Column: Fact-Check & Core Analysis -->
+        <div class="dashboard-col-left">
+          <div>
+            <div class="section-header">Fact-Check Verdict</div>
+            <div class="verdict-explanation">
+              ${escapeHtml(report.veracity_explanation || "Verified against live internet search context.")}
+            </div>
+          </div>
+          <div>
+            <div class="section-header">Core Event Summary</div>
+            <div class="core-summary-box">
+              <p class="core-summary-text">${escapeHtml(report.core_summary)}</p>
+            </div>
+          </div>
         </div>
-      ` : ""}
+
+        <!-- Right Column: Key Omitted Facts & Perspectives -->
+        <div class="dashboard-col-right">
+          <div>
+            <div class="section-header">Key Omitted Facts & Context</div>
+            <div class="omitted-cards-container">
+              ${omittedHtml}
+            </div>
+          </div>
+
+          <div>
+            <div class="section-header">Multi-Spectrum Perspectives</div>
+            <div class="perspectives-container">
+              ${perspectivesHtml}
+            </div>
+          </div>
+
+          ${citationsHtml ? `
+            <div>
+              <div class="section-header">Live Web Sources</div>
+              <div class="sources-container">
+                ${citationsHtml}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+
+      </div>
+
+      <!-- Action Footer -->
+      <div class="card-actions-footer">
+        <button class="btn-secondary" id="copyReportBtn">COPY REPORT</button>
+        <button class="btn-secondary" id="downloadPdfBtn">DOWNLOAD PDF</button>
+      </div>
 
     </div>
   `;
@@ -517,4 +585,241 @@ function escapeHtml(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function handleCopyReport(report, buttonEl) {
+  if (!report) return;
+
+  const factsList = report.key_omitted_facts || report.omitted_facts || [];
+  const validFacts = Array.isArray(factsList)
+    ? factsList.filter(f => f && f.fact && f.fact.trim().length > 0)
+    : [];
+
+  let omittedMd = "";
+  if (validFacts.length > 0) {
+    omittedMd = validFacts.map(f => {
+      const sourceVal = f.source || f.verifying_source || f.source_note || "Verification Engine";
+      return `- **Fact**: ${f.fact}\n  **Source**: ${sourceVal}`;
+    }).join("\n");
+  } else {
+    omittedMd = "- No critical statutory, legal, or factual omissions detected in the primary claims.";
+  }
+
+  const markdownText = `# Echo-Breaker AI Analysis Report: ${report.core_topic || "Media Report"}
+* **Veracity Verdict**: ${report.veracity_rating || "Mostly True with Omissions"}
+* **Truth Score**: ${report.bias_score !== undefined ? 100 - report.bias_score : 50}/100
+* **Framing/Indicator**: ${report.detected_framing || "Sensationalist"}
+
+## Core Event Summary
+${report.core_summary || "No summary provided."}
+
+## Key Omitted Facts & Context
+${omittedMd}
+
+## Neutral Synthesis
+${report.neutral_synthesis || "No synthesis available."}
+`;
+
+  navigator.clipboard.writeText(markdownText).then(() => {
+    const originalText = buttonEl.textContent;
+    buttonEl.textContent = "COPIED!";
+    buttonEl.style.color = "var(--accent-cyan)";
+    setTimeout(() => {
+      buttonEl.textContent = originalText;
+      buttonEl.style.color = "";
+    }, 2000);
+  }).catch(err => {
+    console.error("Clipboard copy failed:", err);
+    alert("Failed to copy report to clipboard.");
+  });
+}
+
+function handleDownloadPdf(report) {
+  if (!report) return;
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Pop-up blocked! Please allow pop-ups to print the report.");
+    return;
+  }
+
+  const factsList = report.key_omitted_facts || report.omitted_facts || [];
+  const validFacts = Array.isArray(factsList)
+    ? factsList.filter(f => f && f.fact && f.fact.trim().length > 0)
+    : [];
+
+  const omittedHtml = validFacts.map(f => {
+    const sourceVal = f.source || f.verifying_source || f.source_note || "Verification Engine";
+    return `
+      <div class="omitted-item">
+        <div class="omitted-fact">${escapeHtml(f.fact)}</div>
+        <div class="omitted-source">Source: ${escapeHtml(sourceVal)}</div>
+      </div>
+    `;
+  }).join("");
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Echo-Breaker Report - ${escapeHtml(report.core_topic)}</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          padding: 40px;
+          color: #111111;
+          background: #ffffff;
+          line-height: 1.6;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        .header {
+          border-bottom: 2px solid #111111;
+          padding-bottom: 16px;
+          margin-bottom: 24px;
+        }
+        h1 {
+          font-size: 22px;
+          margin: 0 0 8px 0;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #000000;
+        }
+        .meta-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          font-size: 13px;
+          margin-bottom: 24px;
+        }
+        .meta-item {
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          padding: 10px 12px;
+          border-radius: 4px;
+        }
+        .meta-label {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #6b7280;
+          margin-bottom: 2px;
+          letter-spacing: 0.02em;
+        }
+        .meta-value {
+          font-weight: 600;
+          color: #111827;
+        }
+        .section {
+          margin-bottom: 24px;
+        }
+        .section-title {
+          font-size: 13px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #374151;
+          border-bottom: 1px solid #d1d5db;
+          padding-bottom: 4px;
+          margin-bottom: 12px;
+          letter-spacing: 0.05em;
+        }
+        p {
+          font-size: 13px;
+          margin: 0 0 12px 0;
+          color: #1f2937;
+        }
+        .omitted-item {
+          background: #fcfcfc;
+          border-left: 3px solid #111111;
+          padding: 10px 14px;
+          margin-bottom: 12px;
+          border-radius: 0 4px 4px 0;
+        }
+        .omitted-fact {
+          font-size: 13px;
+          font-weight: 500;
+          color: #111827;
+          line-height: 1.5;
+        }
+        .omitted-source {
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          margin-top: 4px;
+          text-transform: uppercase;
+          letter-spacing: 0.02em;
+        }
+        @media print {
+          body {
+            padding: 0;
+          }
+          .meta-item {
+            background: none !important;
+            print-color-adjust: exact;
+          }
+          .omitted-item {
+            background: none !important;
+            border-left: 3px solid #000000 !important;
+            page-break-inside: avoid;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>ECHO-BREAKER AI ANALYSIS REPORT</h1>
+        <div style="font-size: 11px; color: #6b7280; font-weight: 500;">MEDIA VERACITY & BLIND SPOT METRICS SUMMARY</div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-item">
+          <div class="meta-label">Topic</div>
+          <div class="meta-value">${escapeHtml(report.core_topic || "Media Topic")}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Truth Score</div>
+          <div class="meta-value">${report.bias_score !== undefined ? 100 - report.bias_score : 50}/100</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Veracity Verdict</div>
+          <div class="meta-value">${escapeHtml(report.veracity_rating || "Mostly True with Omissions")}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Framing Indicator</div>
+          <div class="meta-value">${escapeHtml(report.detected_framing || "Selective Narrative")}</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Core Event Summary</div>
+        <p>${escapeHtml(report.core_summary || "No summary provided.")}</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Key Omitted Facts & Context Gaps</div>
+        <div>
+          ${omittedHtml || `
+            <div class="omitted-item" style="border-left-color: #d1d5db;">
+              <div class="omitted-fact" style="font-style: italic; color: #6b7280;">No critical statutory, legal, or factual omissions detected in the primary claims.</div>
+              <div class="omitted-source">Verification Engine</div>
+            </div>
+          `}
+        </div>
+      </div>
+
+      <div class="section" style="page-break-inside: avoid;">
+        <div class="section-title">Neutral Synthesis</div>
+        <p>${escapeHtml(report.neutral_synthesis || "No synthesis available.")}</p>
+      </div>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  
+  setTimeout(() => {
+    printWindow.print();
+    printWindow.close();
+  }, 350);
 }

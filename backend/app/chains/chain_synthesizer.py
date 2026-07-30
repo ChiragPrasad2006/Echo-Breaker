@@ -12,6 +12,13 @@ SYNTHESIZER_PROMPT = """You are the master editor and synthesizer for Echo-Break
 Combine findings from Chain 1 (Extraction) and Chain 2 (Blind Spot & Veracity Analysis) along with live citations into a clear, non-judgmental, structured report.
 CRITICAL: ALL OUTPUT AND SUMMARIES MUST BE IN ENGLISH, REGARDLESS OF THE SOURCE CONTENT LANGUAGE.
 
+CRITICAL INSTRUCTION FOR OMITTED FACTS:
+- Combine and synthesize the hyper-specific omitted facts from Chain 2.
+- DO NOT return generic placeholders (e.g., "Historical context", "Local perspectives", "More nuance needed", etc.).
+- EVERY item in the "omitted_facts" list MUST identify concrete statutory/legal provisions, operational/institutional realities, or missing data points/metrics.
+- Each item MUST have a clear, hyper-specific "fact" and a concrete, authoritative "source".
+- STRICT RULE: Any omitted facts or missing context mentioned in the core summary (core_summary), veracity explanation, or neutral synthesis paragraphs (e.g., CRPF chief quotes, pellet gun circumstances, or Mamdani backing off due to lack of authority) MUST also be explicitly formatted as objects inside the "omitted_facts" JSON array as {{ "fact": "...", "source": "..." }}. The "omitted_facts" array MUST NOT be empty or returned as fallback when omissions are mentioned or implied in the core_summary or explanation text.
+
 CHAIN 1 DATA:
 {chain1_data}
 
@@ -32,9 +39,9 @@ Your output MUST strictly follow this JSON structure:
     "primary_stance": "Summary of the source text's primary narrative stance",
     "omitted_facts": [
         {{
-            "fact": "Clear description of key omitted fact or context",
-            "importance": "High",
-            "source_note": "Reference or context"
+            "fact": "MeitY's blocking order citing Section 69A of the IT Act was not public, violating the transparency mandate from the Shreya Singhal judgment.",
+            "importance": "Critical",
+            "source": "IT Rules Jurisprudence"
         }}
     ],
     "opposing_perspectives": [
@@ -95,9 +102,9 @@ async def run_chain_synthesizer(
         OmittedFact(**item) for item in chain2_data.get("omitted_facts", []) if isinstance(item, dict)
     ] or [
         OmittedFact(
-            fact=f"Additional historical and market context for {topic_name}.",
-            importance="High",
-            source_note="Live Web Context"
+            fact="No critical statutory, legal, or factual omissions detected in the primary claims.",
+            importance="Context",
+            source="Verification Engine"
         )
     ]
 
@@ -116,13 +123,14 @@ async def run_chain_synthesizer(
         try:
             prompt = PromptTemplate(
                 template=SYNTHESIZER_PROMPT,
-                input_variables=["chain1_data", "chain2_data", "citations_data"]
+                input_variables=["chain1_data", "chain2_data", "citations_data", "fact"]
             )
             chain = prompt | llm | JsonOutputParser()
             raw_output = await chain.ainvoke({
-                "chain1_data": json.dumps(chain1_data),
-                "chain2_data": json.dumps(chain2_data),
-                "citations_data": json.dumps([c.model_dump() for c in citations])
+                "chain1_data": json.dumps(chain1_data) if chain1_data else "",
+                "chain2_data": json.dumps(chain2_data) if chain2_data else "",
+                "citations_data": json.dumps([c.model_dump() for c in citations]) if citations else "",
+                "fact": ""
             })
             return BlindSpotReport(**raw_output)
         except Exception as e:
