@@ -142,7 +142,7 @@ function renderContextPills() {
     const pill = document.createElement("div");
     pill.className = "context-pill";
     const titleSnippet = contextState.title ? contextState.title.slice(0, 25) + "..." : "Active Page";
-    pill.innerHTML = `🌐 Page: ${titleSnippet} <span class="context-pill-close" data-type="url">&times;</span>`;
+    pill.innerHTML = `PAGE: ${titleSnippet} <span class="context-pill-close" data-type="url">&times;</span>`;
     contextPillsBar.appendChild(pill);
   }
 
@@ -150,14 +150,14 @@ function renderContextPills() {
     const pill = document.createElement("div");
     pill.className = "context-pill";
     const textSnippet = contextState.selectedText.slice(0, 25) + "...";
-    pill.innerHTML = `✂️ Text: "${textSnippet}" <span class="context-pill-close" data-type="text">&times;</span>`;
+    pill.innerHTML = `TEXT: "${textSnippet}" <span class="context-pill-close" data-type="text">&times;</span>`;
     contextPillsBar.appendChild(pill);
   }
 
   if (contextState.imageBase64) {
     const pill = document.createElement("div");
     pill.className = "context-pill";
-    pill.innerHTML = `📸 Image Attached <span class="context-pill-close" data-type="image">&times;</span>`;
+    pill.innerHTML = `IMAGE ATTACHED <span class="context-pill-close" data-type="image">&times;</span>`;
     contextPillsBar.appendChild(pill);
   }
 
@@ -360,8 +360,8 @@ async function runFollowUpChat(userQuery) {
     let citationsHtml = "";
     if (data.citations && data.citations.length > 0) {
       citationsHtml = `
-        <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-color); font-size:11px;">
-          <strong style="color:var(--text-muted);">🌐 Verified Live Web Sources:</strong><br/>
+        <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-stealth); font-size:11px;">
+          <strong style="color:var(--text-muted); text-transform:uppercase; letter-spacing:0.02em;">Verified Live Web Sources:</strong><br/>
           ${data.citations.map(c => `• <a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a>`).join("<br/>")}
         </div>
       `;
@@ -388,17 +388,15 @@ async function runFollowUpChat(userQuery) {
     let veracityHtml = "";
     if (data.veracity_check) {
       let vCheckStr = escapeHtml(data.veracity_check);
-      let vColor = "#34d399";
-      let vIcon = "✓";
+      let vColor = "var(--accent-cyan)";
       if (vCheckStr.toLowerCase().includes("limit") || vCheckStr.toLowerCase().includes("error") || vCheckStr.toLowerCase().includes("exceeded") || vCheckStr.toLowerCase().includes("unconfirmed") || vCheckStr.toLowerCase().includes("partially")) {
-        vColor = "#facc15"; // Yellow warning
-        vIcon = "⚠️";
+        vColor = "var(--accent-yellow)"; // Yellow warning
       }
-      veracityHtml = `<div style="font-size:11px; color:${vColor}; font-weight:bold; margin-top:8px;">${vIcon} ${vCheckStr}</div>`;
+      veracityHtml = `<div style="font-size:11px; color:${vColor}; font-weight:bold; margin-top:8px; text-transform:uppercase; letter-spacing:0.02em;">${vCheckStr}</div>`;
     }
 
     card.querySelector(".assistant-card").innerHTML = `
-      <div style="font-size:13px; line-height:1.6; color:#f3f4f6;">${formattedAns}</div>
+      <div class="general-response-text">${formattedAns}</div>
       ${veracityHtml}
       ${citationsHtml}
     `;
@@ -413,28 +411,14 @@ async function runFollowUpChat(userQuery) {
 
 function renderReportCardHtml(report) {
   const veracity = report.veracity_rating || "Mostly True with Omissions";
-  let bannerClass = "mostly-true";
-  let veracityIcon = "⚠️";
-
-  if (veracity.toLowerCase().includes("factually confirmed") || veracity.toLowerCase().includes("factually true")) {
-    bannerClass = "true";
-    veracityIcon = "✅";
-  } else if (veracity.toLowerCase().includes("leak") || veracity.toLowerCase().includes("rumor")) {
-    bannerClass = "mostly-true";
-    veracityIcon = "⚠️";
-  } else if (veracity.toLowerCase().includes("misleading") || veracity.toLowerCase().includes("false")) {
-    bannerClass = "misleading";
-    veracityIcon = "🔴";
-  }
-
   const score = report.bias_score !== undefined && report.bias_score !== null ? report.bias_score : 55;
 
   let omittedHtml = "";
   if (report.omitted_facts && report.omitted_facts.length > 0) {
     omittedHtml = report.omitted_facts.map(f => `
-      <div class="fact-item">
-        <strong>${escapeHtml(f.fact)}</strong>
-        ${f.source_note ? `<div style="color:#9ca3af; font-size:10px; margin-top:2px;">Source: ${escapeHtml(f.source_note)}</div>` : ""}
+      <div class="omitted-card">
+        <div class="omitted-card-text">${escapeHtml(f.fact)}</div>
+        ${f.source_note ? `<div class="source-tag">Source: ${escapeHtml(f.source_note)}</div>` : ""}
       </div>
     `).join("");
   } else {
@@ -445,66 +429,88 @@ function renderReportCardHtml(report) {
   if (report.opposing_perspectives && report.opposing_perspectives.length > 0) {
     perspectivesHtml = report.opposing_perspectives.map(p => `
       <div class="perspective-item">
-        <div class="perspective-tag">${escapeHtml(p.spectrum)}</div>
-        <div>${escapeHtml(p.viewpoint)}</div>
-        ${p.outlet_examples ? `<div style="font-size:10px; color:#6b7280; margin-top:2px;">Outlets: ${escapeHtml(p.outlet_examples.join(", "))}</div>` : ""}
+        <div class="perspective-spectrum">${escapeHtml(p.spectrum)}</div>
+        <div class="perspective-view">${escapeHtml(p.viewpoint)}</div>
+        ${p.outlet_examples && p.outlet_examples.length > 0 ? `<div class="perspective-outlets">Outlets: ${escapeHtml(p.outlet_examples.join(", "))}</div>` : ""}
       </div>
     `).join("");
+  } else {
+    perspectivesHtml = `<div style="color:var(--text-muted); font-size:11px;">No opposing perspectives identified.</div>`;
   }
 
   let citationsHtml = "";
   if (report.internet_citations && report.internet_citations.length > 0) {
     citationsHtml = report.internet_citations.map(c => `
-      <div><a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a></div>
+      <div class="citation-item">
+        <a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a>
+      </div>
     `).join("");
   }
 
   return `
     <div class="assistant-card">
       
-      <div class="veracity-banner ${bannerClass}">
-        <span>${veracityIcon}</span>
-        <span>${escapeHtml(veracity)}</span>
-      </div>
-      <div style="font-size:11px; color:#d1d5db; line-height:1.4;">
-        ${escapeHtml(report.veracity_explanation || "Verified against live internet search context.")}
-      </div>
-
-      <div class="score-box">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="report-section-title">Blind Spot Risk Index</span>
-          <span style="font-weight:800; font-size:16px;">${score}/100</span>
+      <!-- Dynamic Truth & Blind Spot Meter -->
+      <div class="meter-container">
+        <div class="meter-header">
+          <span class="meter-status">${escapeHtml(veracity)}</span>
+          <span class="meter-score">${score}/100</span>
         </div>
-        <div class="score-bar-bg">
-          <div class="score-bar-fill" style="width: ${score}%;"></div>
+        <div class="meter-track">
+          <div class="meter-pointer" style="left: ${score}%;"></div>
         </div>
-        <div style="font-size:10px; color:#9ca3af; display:flex; justify-content:space-between;">
-          <span>Framing: ${escapeHtml(report.detected_framing || "Unconfirmed Leak")}</span>
-          <span>${score > 60 ? "High Echo Chamber Risk" : "Balanced Coverage"}</span>
+        <div class="meter-labels">
+          <span>Mostly False</span>
+          <span>Mostly True</span>
         </div>
       </div>
 
-      <div>
-        <div class="report-section-title">Core Event Summary</div>
-        <div style="color:#e5e7eb; line-height:1.4;">${escapeHtml(report.core_summary)}</div>
-      </div>
-
-      <div>
-        <div class="report-section-title">📌 Key Omitted Facts & Context</div>
-        ${omittedHtml}
-      </div>
-
-      <div>
-        <div class="report-section-title">⚖️ Multi-Spectrum Perspectives</div>
-        ${perspectivesHtml}
-      </div>
-
-      ${citationsHtml ? `
-        <div>
-          <div class="report-section-title">🌐 Live Web Sources</div>
-          ${citationsHtml}
+      <!-- Two-Column Analytical Layout -->
+      <div class="dashboard-grid">
+        
+        <!-- Left Column: Fact-Check & Core Analysis -->
+        <div class="dashboard-col-left">
+          <div>
+            <div class="section-header">Fact-Check Verdict</div>
+            <div class="verdict-explanation">
+              ${escapeHtml(report.veracity_explanation || "Verified against live internet search context.")}
+            </div>
+          </div>
+          <div>
+            <div class="section-header">Core Event Summary</div>
+            <div class="core-summary-box">
+              <p class="core-summary-text">${escapeHtml(report.core_summary)}</p>
+            </div>
+          </div>
         </div>
-      ` : ""}
+
+        <!-- Right Column: Key Omitted Facts & Perspectives -->
+        <div class="dashboard-col-right">
+          <div>
+            <div class="section-header">Key Omitted Facts & Context</div>
+            <div class="omitted-cards-container">
+              ${omittedHtml}
+            </div>
+          </div>
+
+          <div>
+            <div class="section-header">Multi-Spectrum Perspectives</div>
+            <div class="perspectives-container">
+              ${perspectivesHtml}
+            </div>
+          </div>
+
+          ${citationsHtml ? `
+            <div>
+              <div class="section-header">Live Web Sources</div>
+              <div class="sources-container">
+                ${citationsHtml}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+
+      </div>
 
     </div>
   `;
