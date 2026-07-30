@@ -427,7 +427,7 @@ function renderReportCardHtml(report) {
     veracityIcon = "🔴";
   }
 
-  const score = report.bias_score || 55;
+  const score = report.bias_score !== undefined && report.bias_score !== null ? report.bias_score : 55;
 
   let omittedHtml = "";
   if (report.omitted_facts && report.omitted_facts.length > 0) {
