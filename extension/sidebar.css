@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Echo-Breaker Dark Obsidian Design System
+   Echo-Breaker Dark Obsidian Design System (Antigravity Minimalist Theme)
    ========================================================================== */
 :root {
   --bg-obsidian: #08090A;
@@ -11,7 +11,7 @@
   --accent-yellow: #FACC15;
   
   --text-high-contrast: #FFFFFF;
-  --text-primary: #8E95A2;
+  --text-primary: #94A3B8; /* Slate-400 */
   --text-muted: #525866;
   
   --border-stealth: rgba(255, 255, 255, 0.07);
@@ -35,8 +35,8 @@
 }
 
 body {
-  background-color: var(--bg-obsidian);
-  color: var(--text-primary);
+  background-color: #08090A; /* Pitch black */
+  color: #94A3B8; /* Slate text */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   height: 100vh;
   display: flex;
@@ -47,15 +47,15 @@ body {
 
 /* Scrollbars */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-obsidian);
+  background: #08090A;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+  background: #1A1D24;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-cyan);
@@ -91,8 +91,6 @@ body {
   width: 28px;
   height: 28px;
   flex-shrink: 0;
-  image-rendering: crisp-edges;
-  image-rendering: -webkit-optimize-contrast;
   transition: transform 0.2s var(--transition-physics);
 }
 
@@ -149,9 +147,13 @@ body {
    Main Layout & Welcome View
    ========================================================================== */
 .chat-thread {
-  flex: 1;
+  position: absolute;
+  top: 53px; /* height of chat-header */
+  bottom: 0;
+  left: 0;
+  right: 0;
   overflow-y: auto;
-  padding: 16px;
+  padding: 16px 16px 90px 16px; /* padding-bottom to prevent cutoff */
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -351,7 +353,7 @@ body {
   background-color: var(--text-high-contrast);
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
   transform: translateX(-50%);
-  transition: left 0.5s var(--transition-physics);
+  transition: left 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .meter-labels {
@@ -399,9 +401,9 @@ body {
 .section-header {
   font-size: 9px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #94a3b8; /* Slate-400 */
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 1.2px;
   margin-bottom: 4px;
 }
 
@@ -433,18 +435,16 @@ body {
   gap: 8px;
 }
 
-.omitted-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-stealth);
+/* 2. Omitted Fact Cards */
+.fact-card {
+  background: #121417;
+  border-left: 3px solid #00F2FE;
+  padding: 12px;
+  margin-bottom: 8px;
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  transition: all 0.2s var(--transition-physics);
-}
-
-.omitted-card:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: var(--border-active);
-  transform: translateY(-1px);
+  border-top: 1px solid var(--border-stealth);
+  border-right: 1px solid var(--border-stealth);
+  border-bottom: 1px solid var(--border-stealth);
 }
 
 .omitted-card-text {
@@ -454,12 +454,11 @@ body {
   margin-bottom: 6px;
 }
 
-.source-tag {
-  font-size: 8px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+/* 3. Monospace Sources */
+.fact-source {
+  font-family: monospace;
+  font-size: 10px;
+  color: #8E95A2;
 }
 
 /* Perspectives Section */
@@ -504,23 +503,6 @@ body {
   gap: 6px;
 }
 
-.citation-item {
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.citation-link {
-  color: var(--accent-cyan);
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.15s;
-}
-
-.citation-link:hover {
-  color: var(--text-high-contrast);
-  text-decoration: underline;
-}
-
 /* ==========================================================================
    Verdict Callout Box (For general chat responses)
    ========================================================================== */
@@ -557,12 +539,19 @@ body {
    Fixed Bottom Input Area
    ========================================================================== */
 .input-area {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   padding: 12px 16px;
-  background: var(--bg-obsidian);
+  background: rgba(8, 9, 10, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-top: 1px solid var(--border-stealth);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  z-index: 10;
 }
 
 .context-pills-bar {
@@ -715,4 +704,92 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Report Export Action Buttons Style
+   ========================================================================== */
+/* 4. Action Footer */
+.card-actions-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+#globalActionsFooter.card-actions-footer {
+  position: absolute;
+  bottom: 68px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(8, 9, 10, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 0;
+  z-index: 9;
+}
+
+/* 5. Secondary Buttons */
+.btn-secondary {
+  background: #121417;
+  border: 1px solid #333;
+  color: white;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s var(--transition-physics);
+}
+
+.btn-secondary:hover {
+  background-color: #1a1d22;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 2px 8px rgba(0, 242, 254, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Tactile button active states */
+.btn-secondary:active,
+.send-btn:active,
+.plus-attach-btn:active,
+.shortcut-btn:active,
+.quick-chip:active {
+  transform: scale(0.98) !important;
+}
+
+/* Interactive Pill Links for Live Web Sources */
+.citation-item {
+  display: inline-block;
+  margin: 4px;
+}
+
+.citation-link {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 242, 254, 0.04);
+  border: 1px solid rgba(0, 242, 254, 0.15);
+  color: var(--accent-cyan);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s var(--transition-physics);
+}
+
+.citation-link:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-cyan);
+  background: rgba(0, 242, 254, 0.08);
+}
+
+.citation-link:active {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 242, 254, 0.3);
 }

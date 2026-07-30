@@ -36,6 +36,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def startup_event():
+    from dotenv import load_dotenv
+    import os
+    
+    # Reload .env to ensure fresh validation on startup
+    load_dotenv()
+    
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    
+    if not gemini_key and not openai_key and not groq_key:
+        logger.warning(
+            "WARNING: No active LLM API keys found in .env configuration! "
+            "Please configure GEMINI_API_KEY, OPENAI_API_KEY, or GROQ_API_KEY to ensure Echo-Breaker performs analysis."
+        )
+    else:
+        logger.info(
+            f"API Key startup check completed. Configured providers: "
+            f"Gemini: {'Configured' if gemini_key else 'Missing'}, "
+            f"OpenAI: {'Configured' if openai_key else 'Missing'}, "
+            f"Groq: {'Configured' if groq_key else 'Missing'}."
+        )
+
 @app.get("/")
 def root():
     return {
