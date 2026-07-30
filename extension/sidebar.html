@@ -12,13 +12,8 @@
     <!-- Top Header -->
     <header class="chat-header">
       <div class="brand-group">
-        <svg class="logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="32" height="32" rx="6" fill="#15171A" stroke="rgba(255, 255, 255, 0.07)" stroke-width="1.2"/>
-          <path d="M8 9H17V11H10V14H16V16H10V19H17V21H8V9Z" fill="#FFFFFF"/>
-          <path d="M18 9H22C23.6569 9 25 10.3431 25 12C25 13.1046 24.3 14.1 23.2 14.6C24.3 15.1 25 16.1 25 17.2C25 18.8569 23.6569 20.2 22 20.2H18V9ZM20 11V13.8H21.8C22.4627 13.8 23 13.2627 23 12.6C23 11.9373 22.4627 11.4 21.8 11.4H20ZM20 15.6V18.2H22C22.6627 18.2 23.2 17.6627 23.2 17C23.2 16.3373 22.6627 15.8 22 15.8H20Z" fill="#00F2FE"/>
-        </svg>
+        <img class="logo-img" src="icons/logo.png" alt="Echo-Breaker Logo" />
         <div>
-          <div class="brand-title">ECHO-BREAKER</div>
           <div class="brand-status">
             <span class="status-dot"></span>
             <span id="statusText">Connected</span>
@@ -71,35 +66,28 @@
 
     </main>
 
-    <!-- Global Persistent Actions Footer -->
-    <div class="card-actions-footer" id="globalActionsFooter" style="display: none; background: var(--bg-obsidian); z-index: 5;">
-      <button class="btn-secondary" id="globalCopyReportBtn">COPY REPORT</button>
-      <button class="btn-secondary" id="globalDownloadPdfBtn">DOWNLOAD PDF</button>
-    </div>
 
-    <!-- Bottom Input Bar (ChatGPT Style) -->
+    <!-- Bottom Input Bar (Gemini Style) -->
     <footer class="input-area">
-      
-      <!-- Active Context Pills Bar -->
-      <div class="context-pills-bar" id="contextPillsBar">
-        <!-- Dynamically injected pills: Page URL, Selection, Attached Image -->
-      </div>
-
-      <!-- Main Input Controls -->
       <div class="input-control-box">
-        <!-- Plus (+) Attachment Button -->
-        <button class="plus-attach-btn" id="plusAttachBtn" title="Attach Image or Screenshot">+</button>
-        <input type="file" id="fileInput" accept="image/*" style="display:none;" />
+        <!-- Image & Context Previews (Injected Here) -->
+        <div class="context-pills-bar" id="contextPillsBar"></div>
 
-        <textarea 
-          class="chat-textarea" 
-          id="chatTextarea" 
-          placeholder="Ask anything, check article truth, or paste text/image..." 
-          rows="1"></textarea>
+        <div class="input-row">
+          <button class="plus-attach-btn" id="plusAttachBtn" title="Attach Image or Screenshot">+</button>
+          <input type="file" id="fileInput" accept="image/*" style="display:none;" />
 
-        <button class="send-btn" id="sendBtn" title="Send message">➔</button>
+          <textarea 
+            class="chat-textarea" 
+            id="chatTextarea" 
+            placeholder="Ask anything, check article truth, or paste text/image..." 
+            rows="1"></textarea>
+
+          <button class="send-btn" id="sendBtn" title="Send message">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
       </div>
-
     </footer>
 
   </div>

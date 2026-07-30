@@ -141,29 +141,46 @@ function renderContextPills() {
   contextPillsBar.innerHTML = "";
 
   if (contextState.url && contextState.url !== contextState.dismissedUrl) {
-    const pill = document.createElement("div");
-    pill.className = "context-pill";
-    const titleSnippet = contextState.title ? contextState.title.slice(0, 25) + "..." : "Active Page";
-    pill.innerHTML = `PAGE: ${titleSnippet} <span class="context-pill-close" data-type="url">&times;</span>`;
-    contextPillsBar.appendChild(pill);
+    const card = document.createElement("div");
+    card.className = "preview-card";
+    const titleSnippet = contextState.title ? contextState.title.slice(0, 30) + "..." : "Active Web Page";
+    card.innerHTML = `
+      <div style="width: 24px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px;">🌐</div>
+      <div style="display: flex; flex-direction: column; max-width: 150px;">
+        <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Context</span>
+        <span style="font-size: 11px; color: var(--text-high-contrast); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(titleSnippet)}</span>
+      </div>
+      <div class="preview-close-btn" data-type="url">&times;</div>
+    `;
+    contextPillsBar.appendChild(card);
   }
 
   if (contextState.selectedText) {
-    const pill = document.createElement("div");
-    pill.className = "context-pill";
-    const textSnippet = contextState.selectedText.slice(0, 25) + "...";
-    pill.innerHTML = `TEXT: "${textSnippet}" <span class="context-pill-close" data-type="text">&times;</span>`;
-    contextPillsBar.appendChild(pill);
+    const card = document.createElement("div");
+    card.className = "preview-card";
+    const textSnippet = contextState.selectedText.slice(0, 30) + "...";
+    card.innerHTML = `
+      <div style="width: 24px; height: 24px; background: rgba(0,242,254,0.1); color: var(--accent-cyan); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px;">📝</div>
+      <div style="display: flex; flex-direction: column; max-width: 150px;">
+        <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Selection</span>
+        <span style="font-size: 11px; color: var(--text-high-contrast); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">"${escapeHtml(textSnippet)}"</span>
+      </div>
+      <div class="preview-close-btn" data-type="text">&times;</div>
+    `;
+    contextPillsBar.appendChild(card);
   }
 
   if (contextState.imageBase64) {
-    const pill = document.createElement("div");
-    pill.className = "context-pill";
-    pill.innerHTML = `IMAGE ATTACHED <span class="context-pill-close" data-type="image">&times;</span>`;
-    contextPillsBar.appendChild(pill);
+    const imgWrapper = document.createElement("div");
+    imgWrapper.className = "preview-card-image";
+    imgWrapper.innerHTML = `
+      <img src="${contextState.imageBase64}" alt="Attachment">
+      <div class="preview-close-btn" data-type="image">&times;</div>
+    `;
+    contextPillsBar.appendChild(imgWrapper);
   }
 
-  contextPillsBar.querySelectorAll(".context-pill-close").forEach((btn) => {
+  contextPillsBar.querySelectorAll(".preview-close-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const type = e.target.getAttribute("data-type");
       if (type === "url") {
@@ -333,23 +350,7 @@ async function runFullAnalysisPipeline(userQuery) {
     if (copyBtn) copyBtn.addEventListener("click", () => handleCopyReport(report, copyBtn));
     if (downloadBtn) downloadBtn.addEventListener("click", () => handleDownloadPdf(report));
 
-    // Show and bind global actions footer
-    const globalFooter = document.getElementById("globalActionsFooter");
-    if (globalFooter) {
-      globalFooter.style.display = "flex";
-      chatThread.style.paddingBottom = "130px";
-      const globalCopyBtn = document.getElementById("globalCopyReportBtn");
-      const globalDownloadBtn = document.getElementById("globalDownloadPdfBtn");
-      if (globalCopyBtn && globalDownloadBtn) {
-        const newGlobalCopyBtn = globalCopyBtn.cloneNode(true);
-        const newGlobalDownloadBtn = globalDownloadBtn.cloneNode(true);
-        globalCopyBtn.parentNode.replaceChild(newGlobalCopyBtn, globalCopyBtn);
-        globalDownloadBtn.parentNode.replaceChild(newGlobalDownloadBtn, globalDownloadBtn);
 
-        newGlobalCopyBtn.addEventListener("click", () => handleCopyReport(report, newGlobalCopyBtn));
-        newGlobalDownloadBtn.addEventListener("click", () => handleDownloadPdf(report));
-      }
-    }
 
     chatThread.scrollTop = chatThread.scrollHeight;
 
@@ -398,8 +399,14 @@ async function runFollowUpChat(userQuery) {
     if (data.citations && data.citations.length > 0) {
       citationsHtml = `
         <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-stealth); font-size:11px;">
-          <strong style="color:var(--text-muted); text-transform:uppercase; letter-spacing:0.02em;">Verified Live Web Sources:</strong><br/>
-          ${data.citations.map(c => `• <a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a>`).join("<br/>")}
+          <strong style="color:var(--text-muted); text-transform:uppercase; letter-spacing:0.02em; display:block; margin-bottom:8px;">Verified Live Web Sources:</strong>
+          <div class="sources-container">
+            ${data.citations.map(c => `
+              <div class="citation-item">
+                <a class="citation-link" href="${c.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.title)}</a>
+              </div>
+            `).join("")}
+          </div>
         </div>
       `;
     }
@@ -436,7 +443,16 @@ async function runFollowUpChat(userQuery) {
       <div class="general-response-text">${formattedAns}</div>
       ${veracityHtml}
       ${citationsHtml}
+      <div class="card-actions-footer">
+        <button class="btn-secondary copy-chat-btn">COPY</button>
+        <button class="btn-secondary download-chat-pdf-btn">DOWNLOAD PDF</button>
+      </div>
     `;
+
+    const copyBtn = card.querySelector(".copy-chat-btn");
+    const downloadBtn = card.querySelector(".download-chat-pdf-btn");
+    if (copyBtn) copyBtn.addEventListener("click", () => handleCopyChat(data, copyBtn));
+    if (downloadBtn) downloadBtn.addEventListener("click", () => handleDownloadChatPdf(data));
 
     contextState.chatHistory.push({ role: "user", content: userQuery });
     contextState.chatHistory.push({ role: "assistant", content: data.answer });
@@ -570,7 +586,7 @@ function renderReportCardHtml(report) {
 
       <!-- Action Footer -->
       <div class="card-actions-footer">
-        <button class="btn-secondary" id="copyReportBtn">COPY REPORT</button>
+        <button class="btn-secondary" id="copyReportBtn">COPY</button>
         <button class="btn-secondary" id="downloadPdfBtn">DOWNLOAD PDF</button>
       </div>
 
@@ -812,6 +828,108 @@ function handleDownloadPdf(report) {
         <div class="section-title">Neutral Synthesis</div>
         <p>${escapeHtml(report.neutral_synthesis || "No synthesis available.")}</p>
       </div>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  
+  setTimeout(() => {
+    printWindow.print();
+    printWindow.close();
+  }, 350);
+}
+
+function handleCopyChat(data, buttonEl) {
+  if (!data) return;
+  
+  let citationsMd = "";
+  if (data.citations && data.citations.length > 0) {
+    citationsMd = "\n## Sources\n" + data.citations.map(c => `- [${c.title}](${c.url})`).join("\n");
+  }
+
+  const markdownText = `# Echo-Breaker AI Analysis
+${data.veracity_check ? `* **Veracity Note**: ${data.veracity_check}\n` : ""}
+## Response
+${data.answer}
+${citationsMd}
+`;
+
+  navigator.clipboard.writeText(markdownText).then(() => {
+    const originalText = buttonEl.textContent;
+    buttonEl.textContent = "COPIED!";
+    buttonEl.style.color = "var(--accent-cyan)";
+    setTimeout(() => {
+      buttonEl.textContent = originalText;
+      buttonEl.style.color = "";
+    }, 2000);
+  }).catch(err => {
+    console.error("Clipboard copy failed:", err);
+    alert("Failed to copy report to clipboard.");
+  });
+}
+
+function handleDownloadChatPdf(data) {
+  if (!data) return;
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Pop-up blocked! Please allow pop-ups to print the report.");
+    return;
+  }
+
+  let citationsHtml = "";
+  if (data.citations && data.citations.length > 0) {
+    citationsHtml = data.citations.map(c => `
+      <div class="omitted-item">
+        <div class="omitted-fact"><a href="${c.url}" target="_blank" style="color: #111827; text-decoration: none;">${escapeHtml(c.title)}</a></div>
+        <div class="omitted-source">Source Link: ${escapeHtml(c.url)}</div>
+      </div>
+    `).join("");
+  }
+
+  let answerHtml = escapeHtml(data.answer).replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>');
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Echo-Breaker Chat Analysis</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #111111; background: #ffffff; line-height: 1.6; max-width: 800px; margin: 0 auto; }
+        .header { border-bottom: 2px solid #111111; padding-bottom: 16px; margin-bottom: 24px; }
+        h1 { font-size: 22px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.05em; color: #000000; }
+        .section { margin-bottom: 24px; }
+        .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #374151; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-bottom: 12px; letter-spacing: 0.05em; }
+        p { font-size: 13px; margin: 0 0 12px 0; color: #1f2937; }
+        .omitted-item { background: #fcfcfc; border-left: 3px solid #111111; padding: 10px 14px; margin-bottom: 12px; border-radius: 0 4px 4px 0; }
+        .omitted-fact { font-size: 13px; font-weight: 500; color: #111827; line-height: 1.5; }
+        .omitted-source { font-size: 11px; font-weight: 600; color: #6b7280; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.02em; word-break: break-all; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>ECHO-BREAKER CHAT ANALYSIS</h1>
+        <div style="font-size: 11px; color: #6b7280; font-weight: 500;">FOLLOW-UP VERIFICATION</div>
+      </div>
+      
+      ${data.veracity_check ? `
+      <div class="section">
+        <div class="section-title">Veracity Note</div>
+        <p><strong>${escapeHtml(data.veracity_check)}</strong></p>
+      </div>` : ""}
+
+      <div class="section">
+        <div class="section-title">Analysis Response</div>
+        <p>${answerHtml}</p>
+      </div>
+
+      ${citationsHtml ? `
+      <div class="section">
+        <div class="section-title">Verified Sources</div>
+        ${citationsHtml}
+      </div>` : ""}
     </body>
     </html>
   `);
