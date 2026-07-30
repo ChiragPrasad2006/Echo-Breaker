@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 SYNTHESIZER_PROMPT = """You are the master editor and synthesizer for Echo-Breaker.
 Combine findings from Chain 1 (Extraction) and Chain 2 (Blind Spot & Veracity Analysis) along with live citations into a clear, non-judgmental, structured report.
+CRITICAL: ALL OUTPUT AND SUMMARIES MUST BE IN ENGLISH, REGARDLESS OF THE SOURCE CONTENT LANGUAGE.
 
 CHAIN 1 DATA:
 {chain1_data}
@@ -126,22 +127,24 @@ async def run_chain_synthesizer(
             return BlindSpotReport(**raw_output)
         except Exception as e:
             logger.error(f"Chain 3 Synthesizer LLM error: {e}")
+            error_msg = str(e)[:150]
 
     # Dynamic fallback report
+    has_error = "error_msg" in locals()
     return BlindSpotReport(
-        core_topic=topic_name,
-        core_summary=dynamic_summary,
-        detected_framing=chain1_data.get("source_bias_indicator", "Selective Narrative"),
-        bias_score=calc_score,
-        veracity_rating=veracity,
-        veracity_explanation=veracity_exp,
-        primary_stance=primary_stance,
+        core_topic=topic_name if not has_error else "Error Synthesizing Report",
+        core_summary=dynamic_summary if not has_error else f"Failed due to API Error: {error_msg}",
+        detected_framing=chain1_data.get("source_bias_indicator", "Selective Narrative") if not has_error else "Error",
+        bias_score=calc_score if not has_error else 0,
+        veracity_rating=veracity if not has_error else "API Error",
+        veracity_explanation=veracity_exp if not has_error else f"Analysis failed due to error: {error_msg}",
+        primary_stance=primary_stance if not has_error else "Error",
         omitted_facts=omitted,
         opposing_perspectives=perspectives,
         internet_citations=citations,
-        neutral_synthesis=f"A complete picture of '{topic_name}' requires looking beyond single social posts or headlines to cross-reference verified global news data.",
+        neutral_synthesis=f"A complete picture of '{topic_name}' requires looking beyond single social posts or headlines to cross-reference verified global news data." if not has_error else f"Synthesis failed: {error_msg}",
         suggested_questions=[
             f"What primary evidence supports claims regarding {topic_name}?",
             "How do independent data sources explain this event?"
-        ]
+        ] if not has_error else []
     )

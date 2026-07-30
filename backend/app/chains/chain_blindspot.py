@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 BLINDSPOT_PROMPT = """You are a non-partisan media bias and fact-checking analyst.
 Your job is to compare an original news article/tweet/text against live internet search results to evaluate whether the context is TRUE, AN UNVERIFIED LEAK/RUMOR, MISLEADING, or omitting crucial facts.
+CRITICAL: ALL OUTPUT AND SUMMARIES MUST BE IN ENGLISH, REGARDLESS OF THE SOURCE CONTENT LANGUAGE.
 
 ORIGINAL EXTRACTION (CHAIN 1):
 Topic: {core_topic}
@@ -111,23 +112,24 @@ async def run_chain_blindspot(
         return result
     except Exception as e:
         logger.error(f"Chain 2 BlindSpot error: {e}")
+        error_msg = str(e)[:150]
         return {
-            "bias_score": 55,
-            "veracity_rating": default_rating,
-            "veracity_explanation": default_exp,
+            "bias_score": 0,
+            "veracity_rating": "API Error",
+            "veracity_explanation": f"Failed to analyze due to error: {error_msg}",
             "omitted_facts": [
                 {
-                    "fact": "Official confirmation status and context from industry reporting.",
+                    "fact": "API request failed.",
                     "importance": "High",
-                    "source_note": "Web Analysis"
+                    "source_note": "Error Context"
                 }
             ],
             "opposing_perspectives": [
                 {
-                    "spectrum": "Industry Perspective",
-                    "viewpoint": "Notes that early leaks are subject to internal product roadmap changes.",
-                    "key_arguments": ["Unconfirmed leak", "Tentative timeline"],
-                    "outlet_examples": ["Industry Outlets"]
+                    "spectrum": "Error",
+                    "viewpoint": "The analysis could not be completed.",
+                    "key_arguments": ["API Error"],
+                    "outlet_examples": []
                 }
             ]
         }

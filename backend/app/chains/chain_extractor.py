@@ -27,12 +27,14 @@ def get_llm(vision_required: bool = False):
             llms.append(ChatGroq(
                 model="llama-3.1-70b-versatile",
                 api_key=settings.GROQ_API_KEY,
-                temperature=0.2
+                temperature=0.2,
+                max_retries=0
             ))
             llms.append(ChatGroq(
                 model="llama3-70b-8192",
                 api_key=settings.GROQ_API_KEY,
-                temperature=0.2
+                temperature=0.2,
+                max_retries=0
             ))
         except Exception as e:
             logger.warning(f"Could not load ChatGroq: {e}")
@@ -46,7 +48,8 @@ def get_llm(vision_required: bool = False):
                     llms.append(ChatGoogleGenerativeAI(
                         model=model_name,
                         google_api_key=settings.GEMINI_API_KEY,
-                        temperature=0.2
+                        temperature=0.2,
+                        max_retries=0
                     ))
                 except Exception as e:
                     logger.debug(f"Model {model_name} init failed: {e}")
@@ -59,7 +62,8 @@ def get_llm(vision_required: bool = False):
             llms.append(ChatOpenAI(
                 model="gpt-4o-mini",
                 api_key=settings.OPENAI_API_KEY,
-                temperature=0.2
+                temperature=0.2,
+                max_retries=0
             ))
         except Exception as e:
             logger.warning(f"Could not load ChatOpenAI: {e}")
@@ -86,7 +90,7 @@ async def extract_image_content(image_base64: str) -> str:
         from langchain_core.messages import HumanMessage
         msg = HumanMessage(
             content=[
-                {"type": "text", "text": "Extract all text, tweet contents, author name, claims, headlines, and main subject from this image screenshot in exact detail:"},
+                {"type": "text", "text": "Extract all text, tweet contents, author name, claims, headlines, and main subject from this image screenshot in exact detail. CRITICAL: Translate all non-English text to English. All your output MUST be in English:"},
                 {"type": "image_url", "image_url": {"url": image_data_url}}
             ]
         )
@@ -100,6 +104,7 @@ async def extract_image_content(image_base64: str) -> str:
 
 EXTRACTOR_PROMPT = """You are an expert news media analyst and investigative researcher.
 Analyze the following news text, article content, tweet screenshot text, or user query to extract core facts, underlying narrative stance, and search queries for live internet verification.
+CRITICAL: ALL OUTPUT AND SUMMARIES MUST BE IN ENGLISH, REGARDLESS OF THE SOURCE CONTENT LANGUAGE.
 
 SOURCE CONTENT:
 {source_content}
@@ -149,11 +154,11 @@ async def run_chain_extractor(content: str, metadata: str = "") -> Dict[str, Any
         return result
     except Exception as e:
         logger.error(f"Chain 1 Extractor error: {e}")
-        topic_preview = content[:80].replace("\n", " ").strip() or "News Topic Analysis"
+        error_msg = str(e)[:150]
         return {
-            "core_topic": topic_preview,
-            "primary_stance": "Standard news reporting",
-            "key_claims": [content[:250].strip()],
-            "source_bias_indicator": "Partisan Framing",
-            "search_queries": [f"{topic_preview} opposing views", f"{topic_preview} missing context"]
+            "core_topic": "Error Analyzing Content",
+            "primary_stance": f"API Error: {error_msg}",
+            "key_claims": ["The model failed to process this request."],
+            "source_bias_indicator": "Error",
+            "search_queries": ["news"]
         }
