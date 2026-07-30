@@ -58,7 +58,7 @@ def get_llm(vision_required: bool = False):
 
     if settings.OPENAI_API_KEY:
         try:
-            from langchain_community.chat_models import ChatOpenAI
+            from langchain_openai import ChatOpenAI
             llms.append(ChatOpenAI(
                 model="gpt-4o-mini",
                 api_key=settings.OPENAI_API_KEY,
