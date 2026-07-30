@@ -12,9 +12,13 @@
     <!-- Top Header -->
     <header class="chat-header">
       <div class="brand-group">
-        <img class="logo-badge" src="icons/icon48.png" alt="Echo-Breaker Logo">
+        <svg class="logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="6" fill="#15171A" stroke="rgba(255, 255, 255, 0.07)" stroke-width="1.2"/>
+          <path d="M8 9H17V11H10V14H16V16H10V19H17V21H8V9Z" fill="#FFFFFF"/>
+          <path d="M18 9H22C23.6569 9 25 10.3431 25 12C25 13.1046 24.3 14.1 23.2 14.6C24.3 15.1 25 16.1 25 17.2C25 18.8569 23.6569 20.2 22 20.2H18V9ZM20 11V13.8H21.8C22.4627 13.8 23 13.2627 23 12.6C23 11.9373 22.4627 11.4 21.8 11.4H20ZM20 15.6V18.2H22C22.6627 18.2 23.2 17.6627 23.2 17C23.2 16.3373 22.6627 15.8 22 15.8H20Z" fill="#00F2FE"/>
+        </svg>
         <div>
-          <div class="brand-title">ECHO-BREAKER AI</div>
+          <div class="brand-title">ECHO-BREAKER</div>
           <div class="brand-status">
             <span class="status-dot"></span>
             <span id="statusText">Connected</span>
@@ -31,12 +35,33 @@
       
       <!-- Welcome Card -->
       <div class="welcome-card" id="welcomeCard">
-        <div class="welcome-title">
-          <span>ECHO-BREAKER AI ASSISTANT</span>
+        <div class="welcome-title">ECHO-BREAKER AI ASSISTANT</div>
+        <div class="welcome-subtitle">Real-time media bias & fact verification engine.</div>
+        
+        <div class="guide-steps">
+          <div class="guide-step">
+            <span class="step-num">1</span>
+            <div class="step-content">
+              <span class="step-title">Attach Context</span>
+              <span class="step-desc">Open an article, highlight text, or paste a screenshot.</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <span class="step-num">2</span>
+            <div class="step-content">
+              <span class="step-title">Verify Accuracy</span>
+              <span class="step-desc">Ask a follow-up question below, or use quick actions.</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <span class="step-num">3</span>
+            <div class="step-content">
+              <span class="step-title">Expose Blind Spots</span>
+              <span class="step-desc">See the fact-check verdict, omitted facts, and opposing media viewpoints.</span>
+            </div>
+          </div>
         </div>
-        <div class="welcome-text">
-          Break out of partisan filter bubbles in real time. Analyze active news articles, check if content context is factually true or misleading, and reveal key omitted facts using live web search verification.
-        </div>
+
         <div class="quick-actions">
           <button class="quick-chip" id="quickAnalyzeBtn">Analyze Active Page Truth</button>
           <button class="quick-chip" id="quickSelectedBtn">Check Selected Text</button>

@@ -87,19 +87,25 @@ body {
   gap: 10px;
 }
 
-.logo-badge {
+.logo-svg {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-stealth);
-  object-fit: cover;
+  flex-shrink: 0;
+  image-rendering: crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  transition: transform 0.2s var(--transition-physics);
+}
+
+.brand-group:hover .logo-svg {
+  transform: scale(1.02);
 }
 
 .brand-title {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
   color: var(--text-high-contrast);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .brand-status {
@@ -158,22 +164,71 @@ body {
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .welcome-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-high-contrast);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.welcome-text {
-  font-size: 12px;
+.welcome-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: -6px;
+}
+
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 6px 0;
+}
+
+.guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border-stealth);
+  color: var(--accent-cyan);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--bg-obsidian);
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-high-contrast);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.step-desc {
+  font-size: 11px;
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .quick-actions {
@@ -307,6 +362,13 @@ body {
   color: var(--text-muted);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.meter-legend {
+  font-size: 9px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 /* Two-Column Analytical Layout */

@@ -40,11 +40,32 @@ class BlindSpotReport(BaseModel):
     veracity_rating: str = Field(default="Mostly True with Omissions", description="Truth rating: Factually True, Mostly True, Misleading Context, False/Unverified")
     veracity_explanation: str = Field(default="Core facts are verified, but key context is omitted.", description="Detailed explanation of whether the context is true")
     primary_stance: str = Field(..., description="Summary of the source material's explicit or implicit stance")
-    omitted_facts: List[OmittedFact] = Field(default_factory=list, description="Facts, figures, or context omitted in source")
+    key_omitted_facts: List[OmittedFact] = Field(default_factory=list, description="Facts, figures, or context omitted in source")
     opposing_perspectives: List[Perspective] = Field(default_factory=list, description="Alternative and opposing perspectives")
     internet_citations: List[Citation] = Field(default_factory=list, description="Live web search citations used for verification")
     neutral_synthesis: str = Field(..., description="A balanced synthesis combining all perspectives")
     suggested_questions: List[str] = Field(default_factory=list, description="Questions the reader should consider to think critically")
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_omitted_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "omitted_facts" in data and "key_omitted_facts" not in data:
+                data["key_omitted_facts"] = data["omitted_facts"]
+        return data
+
+    @field_validator("key_omitted_facts", mode="before")
+    @classmethod
+    def validate_key_omitted_facts(cls, v):
+        if not v:
+            return [
+                OmittedFact(
+                    fact="No significant omitted facts identified by live internet search verification.",
+                    importance="Context",
+                    source_note="System verification"
+                )
+            ]
+        return v
 
 class ChatMessage(BaseModel):
     role: str = Field(..., description="user or assistant")

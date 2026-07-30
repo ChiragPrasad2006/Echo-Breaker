@@ -454,14 +454,17 @@ function renderReportCardHtml(report) {
       <div class="meter-container">
         <div class="meter-header">
           <span class="meter-status">${escapeHtml(veracity)}</span>
-          <span class="meter-score">${score}/100</span>
+          <span class="meter-score">TRUTH SCORE: ${100 - score}/100</span>
         </div>
         <div class="meter-track">
-          <div class="meter-pointer" style="left: ${score}%;"></div>
+          <div class="meter-pointer" style="left: ${100 - score}%;"></div>
         </div>
         <div class="meter-labels">
           <span>Mostly False</span>
           <span>Mostly True</span>
+        </div>
+        <div class="meter-legend">
+          Truth Score is computed as 100 - Blind Spot Risk. Higher score represents balanced, factual context with fewer omitted details.
         </div>
       </div>
 
